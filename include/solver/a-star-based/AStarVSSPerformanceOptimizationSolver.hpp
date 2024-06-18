@@ -24,14 +24,39 @@ namespace cda_rail::solver::astar_based {
     /////////////////////////
     //train_pos, train_speed, train_routed defined in probleminstance Line 262
     ////////////////////////
-    struct InitialState
+    struct train_state
     {
-      train_pos =
+      //Define state properties
 
-      /////////////
+      std::vector<int> train_pos;
+      int pos;
+      std::vector<int> train_speed;
+      std::vector<bool> train_routed;
+      int n;
+      ///////////////
+      //import the properties for the train for the initial state
       ///////////////
 
     };
+
+
+
+    train_state initial_state() {
+      //Initialize and return the initial state
+      // TODO: Implement this method
+      train_state initial_state;
+      // Initialize initial_state with appropriate values
+      // Example:
+      initial_state.train_pos = std::vector<int>(num_tr, pos);
+      initial_state.n = 0;
+      return initial_state;
+    }
+
+    bool goal_state(State& state) { //returns true or false
+      return std::all_of(state.train_positions.begin(), state.train_positions.end(),
+                         [](int pos) { return pos == 100; });
+
+    }
 
 
   public:
