@@ -33,6 +33,8 @@ namespace cda_rail::solver::astar_based {
       std::vector<int> train_speed;
       std::vector<bool> train_routed;
       int n;
+      std::vector<int> start_pos;
+      std::vector<int> goal_pos;
 
       ///////////////
       //import the properties for the train for the initial state
@@ -43,18 +45,20 @@ namespace cda_rail::solver::astar_based {
 
 
     train_state initial_state() {
-      //Initialize and return the initial state
+      //initialises and return the initial state
       train_state initial_state;
-      initial_state.train_pos = std::vector<int>(num_tr, pos); //pos?
+      initial_state.train_pos = std::vector<int>(num_tr, start_pos);
+      //start_pos is the vector<num_tr, startpos_of_train>
       initial_state.n = 0;
       return initial_state;
     }
 
     bool goal_state(train_state& other) {
+      //checks if all train_pos match with the pre-defined goal_pos
       bool operator == (train_state& other) const{
-        return goal_state,train_pos = std::vector<int>(num_tr, pos);
+        return goal_state,train_pos == std::vector<int>(num_tr, goal_pos);
       }
-      //change pos to other value!!!
+      //goal_pos is the vector<num_tr, goalpos_of_train>
       //write condition
 
     }
