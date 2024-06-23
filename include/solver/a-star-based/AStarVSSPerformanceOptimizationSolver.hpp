@@ -24,6 +24,7 @@ namespace cda_rail::solver::astar_based {
     /////////////////////////
     //train_pos, train_speed, train_routed defined in probleminstance Line 262
     ////////////////////////
+
     struct train_state
     {
       //Define state properties
@@ -70,10 +71,18 @@ namespace cda_rail::solver::astar_based {
   public:
     // Constructors. TODO: Implement
     explicit AStarVSSPerformanceOptimizationSolver(
-        const instances::GeneralPerformanceOptimizationInstance& instance);
-    //namespace "instances": GeneralPerformance... Line 21
+        const instances::GeneralPerformanceOptimizationInstance& instance)
+        : GeneralSolver(instance) {
+          num_t = instance.get_num_t();
+          num_tr = instance.get_num_tr();
+          num_edges = instance.get_num_edges();
+          num_vertices = instance.get_num_vertices();
+        }
     explicit AStarVSSPerformanceOptimizationSolver(
-        const std::filesystem::path& p);
+        const std::filesystem::path& p)
+        : GeneralSolver(p) {
+          //
+        }
     explicit AStarVSSPerformanceOptimizationSolver(const std::string& path);
     explicit AStarVSSPer
 
