@@ -16,13 +16,13 @@ namespace cda_rail::solver::astar_based {
     // TODO: Implement
     //instance variables
     int dt = -1;
-    size_t num_t = 0;
-    size_t num_tr =0;
-    size_t num_edges = 0;
-    size_t num_vertices = 0;
+    size_t num_t = 0; //no need? 7.7.24
+    //std::vector<int> num_tr; //struct Train has Train.name but not vector! needed
+    size_t num_edges = 0; //no need? 7.7.24
+    size_t num_vertices = 0; //no need? 7.7.24
 
     /////////////////////////
-    //train_pos, train_speed, train_routed defined in probleminstance Line 262?
+    //train_pos, train_speed, train_routed defined in probleminstance GeneralPerformanceOptim Line 262?
     ////////////////////////
 
     struct train_state
@@ -30,18 +30,12 @@ namespace cda_rail::solver::astar_based {
       //Define state properties
 
       std::vector<Train> train_current; //train properties
-      // std::vector<Train> train_previous;
+      //std::vector<Train> train_previous;
       std::vector<int> train_pos_current; //train_pos
-      // std::vector<int> train_pos_previous;
+      //std::vector<int> train_pos_previous;
       int time; //time stamp t0,t1 etc
+      std::vector<int> num_tr; //struct Train has Train.name but not vector!
       // TODO: include cost, prev status, VSS info
-
-
-
-
-
-
-
 
 
 
@@ -60,7 +54,6 @@ namespace cda_rail::solver::astar_based {
       ///////////////
 
     };
-
 
 
     train_state initial_state() {
@@ -85,7 +78,34 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-    //functions to check the best option from A-star
+    //heuristic function
+
+
+    //cost function
+
+
+    //successor function
+
+
+    //collision function
+    bool collision(const TrainState& state) const {
+      std::unordered_set<int> positions;
+      for (size_t i = 0; i < num_tr; ++i) {
+        int train_length = state.trains[i].length; //
+        //for Schleife: prüfe ob einen Zug sich in gleichen Position befindet mit anderen Zug
+        for (int pos = std::min(state.previous_trains[i].position, state.train_positions[i]);
+             pos <= std::max(state.previous_trains[i].position, state.train_positions[i]); ++pos) { //NEEDS TO BE WORKED
+          if (positions.find(pos) != positions.end()) {
+            return false;
+          }
+          positions.insert(pos);
+        }
+      }
+      return true;
+    }
+
+
+    //priority queue
 
 
   public:
