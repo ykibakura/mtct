@@ -29,6 +29,23 @@ namespace cda_rail::solver::astar_based {
     {
       //Define state properties
 
+      std::vector<Train> train_current; //train properties
+      // std::vector<Train> train_previous;
+      std::vector<int> train_pos_current; //train_pos
+      // std::vector<int> train_pos_previous;
+      int time; //time stamp t0,t1 etc
+      //TODO: include cost, prev status, VSS info
+
+
+
+
+
+
+
+
+
+
+      //////////////// TO DELETE ////////
       std::vector<int> train_pos;
       int pos;
       std::vector<int> train_speed;
@@ -36,6 +53,7 @@ namespace cda_rail::solver::astar_based {
       int n;
       std::vector<int> start_pos;
       std::vector<int> goal_pos;
+      ///////////////////////////
 
       ///////////////
       //import the properties for the train for the initial state
