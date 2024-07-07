@@ -34,7 +34,7 @@ namespace cda_rail::solver::astar_based {
       std::vector<int> train_pos_current; //train_pos
       // std::vector<int> train_pos_previous;
       int time; //time stamp t0,t1 etc
-      //TODO: include cost, prev status, VSS info
+      // TODO: include cost, prev status, VSS info
 
 
 
