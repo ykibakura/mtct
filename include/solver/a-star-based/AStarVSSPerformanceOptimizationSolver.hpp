@@ -84,16 +84,16 @@ namespace cda_rail::solver::astar_based {
                              int tr2_nr) {
       // used in pot_collision_check
       // when two trains are in the same TDD, then it has to be checked if they collide
-      const auto tr1        = tr_list.get_train(tr1); // get list of tr1
+      const auto tr1 = tr_list.get_train(tr1_nr); // get list of tr1
       const auto tr1_length = tr1.length;             // length tr1
-      int        tr1_start  = train_state.train_pos_current[tr1]; // start
-      int        tr1_end = tr1 + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
+      int        tr1_start = train_state.train_pos_current[tr1_nr]; // start
+      int        tr1_end = tr1_start + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
       ///////TODO: work: add distance traveled, check if + is correct
       ///////////////////////////////////////////////////////////
-      const auto tr2        = tr_list.get_train(tr2);
+      const auto tr2 = tr_list.get_train(tr2_nr);
       const auto tr2_length = tr2.length;
-      int        tr2_start  = train_state.train_pos_current[tr2];
-      int        tr2_end    = tr2 + tr2_length;
+      int        tr2_start = train_state.train_pos_current[tr2_nr];
+      int        tr2_end = tr2_start + tr2_length;
 
       // VERGLEICHE DIE tr1_length & tr2_length:
       //(tr1_start, tr1_end) is section occupied
@@ -102,6 +102,7 @@ namespace cda_rail::solver::astar_based {
         // always compare tr1_start,tr2_end && tr1_end,tr2_start. depends on the positive direction: <>either way
         return true; // collision. if false: VSS can solve the problem
       }
+      return false;
     }
 
     // potential collision check function - checks if multiple trains exist in a TDD
