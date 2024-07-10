@@ -21,6 +21,9 @@ namespace cda_rail::solver::astar_based {
     size_t num_edges = 0; //no need? 7.7.24
     size_t num_vertices = 0; //no need? 7.7.24
 
+
+
+
     /////////////////////////
     //train_pos, train_speed, train_routed defined in probleminstance GeneralPerformanceOptim Line 262?
     ////////////////////////
@@ -31,7 +34,8 @@ namespace cda_rail::solver::astar_based {
 
       std::vector<Train> train_current; //train properties
       //std::vector<Train> train_previous;
-      std::vector<int> train_pos_current; //train_pos
+      std::vector<int> train_pos_current; //train_pos vector
+      std::vector<Edge> train_edges; //which edge is the train at
       //std::vector<int> train_pos_previous;
       int time; //time stamp t0,t1 etc
       std::vector<int> num_tr; //struct Train has Train.name but not vector!
@@ -87,25 +91,60 @@ namespace cda_rail::solver::astar_based {
     //successor function
 
 
-    //collision function
-    bool collision(const TrainState& state) const {
+
+    //used in pot_collision_check
+    bool collision_vss_check(const Edge& edge, const TrainList& tr_list, int tr1, int tr2) {
+      //used in pot_collision_check
+      //when two trains are in the same TDD, then it has to be checked if they collide
+      const auto tr1 = tr_list.get_train(tr1); //get list of tr1
+      const auto tr1_length = tr1.length; //length tr1
+      int tr1_start = train_state.train_pos_current[tr1]; //start
+      int tr1_end = tr1 + tr1_length; //end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
+      ///////TODO: work: add distance traveled, check if + is correct
+      ///////////////////////////////////////////////////////////
+      const auto tr2 = tr_list.get_train(tr2);
+      const auto tr2_length = tr2.length;
+      int tr2_start = train_state.train_pos_current[tr2];
+      int tr2_end = tr2 + tr2_length;
+
+      //VERGLEICHE DIE tr1_length & tr2_length:
+      //(tr1_start, tr1_end) is section occupied
+      if ((tr1_start < tr2_end && tr1_end > tr2_start) || (tr1_start > tr2_end && tr1_end < tr2_start)) {
+        //always compare tr1_start,tr2_end && tr1_end,tr2_start. depends on the posivtive direction: <>either way
+        return true; //collision. if false: VSS can solve the problem
+      }
+    }
+    //potential collision check function - checks if multiple trains exist in a TDD
+    bool pot_collision_check(const TrainState& train_s) const {
       std::unordered_set<int> positions;
       for (size_t i = 0; i < num_tr; ++i) {
-        int train_length = state.trains[i].length; //
-        //for Schleife: prüfe ob einen Zug sich in gleichen Position befindet mit anderen Zug
-        for (int pos = std::min(state.previous_trains[i].position, state.train_positions[i]);
-             pos <= std::max(state.previous_trains[i].position, state.train_positions[i]); ++pos) { //NEEDS TO BE WORKED
-          if (positions.find(pos) != positions.end()) {
-            return false;
+        int train_pos = train_state.train_pos_current[i];
+        const Edge& edge = train_state.train_edges[i];
+        int counter;
+        //if for any two trains, if the edge is the same, then further search for position.
+        //->first, edge check then position.
+        for (size_t j = i+1; j < num_tr; ++j) {
+          if (train_state.train_edges[j] == edge) {
+            int pot_collision = 1;
+            collision_vss_check(edge, tr_list, i, j); //checking if collision or VSS-situation
+            /////////TODO: HOW TO DEFINE TrainList???
+            //////////////////////////////////////////
+
           }
-          positions.insert(pos);
+          ///////// TODO: edge with other direction is not yet considered!!!
+          //////////////////////////////////////////////////////////////
         }
+
+
       }
+
+
+
+
+
+      //priority queue
       return true;
     }
-
-
-    //priority queue
 
 
   public:
