@@ -80,8 +80,8 @@ namespace cda_rail::solver::astar_based {
     // TODO: successor function
 
     // used in pot_collision_check
-    bool collision_vss_check(const Edge& edge, const TrainList& tr_list, int tr1,
-                             int tr2) {
+    bool collision_vss_check(const Edge& edge, const TrainList& tr_list, int tr1_nr,
+                             int tr2_nr) {
       // used in pot_collision_check
       // when two trains are in the same TDD, then it has to be checked if they collide
       const auto tr1        = tr_list.get_train(tr1); // get list of tr1
@@ -109,12 +109,10 @@ namespace cda_rail::solver::astar_based {
       int collision = 0; // default collision = 0. when collision detected: =1
 
       for (size_t i = 0; i < num_tr; ++i) {
-        ////////////TODO: check if train_pos is correct defined
-        //////////////////////////////////////////////////
-        int         train_pos = train_state.train_pos_current[i];
-        const Edge& edge      = train_state.train_edges[i];
-        int         counter;
-        // if for any two trains, if the edge is the same, then further search for position.
+       //int train_pos = train_state.train_pos_current[i]; NOT NEEDED!
+        const Edge& edge = train_state.train_edges[i];
+
+        // if for any two trains, position further search if edge is the same
         //->first, edge check then position.
         for (size_t j = i + 1; j < num_tr; ++j) {
           if (train_state.train_edges[j] == edge) {
@@ -124,12 +122,13 @@ namespace cda_rail::solver::astar_based {
               /////////TODO: HOW TO DEFINE TrainList???
               //////////////////////////////////////////
               collision = 1; // collision happens
-              break;         // collision detected. not valid successor. break
+              return true; // collision detected. not valid successor. (break)
             }
           }
           ///////// TODO: edge with other direction is not yet considered!!!
           //////////////////////////////////////////////////////////////
         }
+        return false; //When no collision(potential VSS):return false
       }
 
       return true;
