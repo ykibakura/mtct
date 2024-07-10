@@ -87,9 +87,7 @@ namespace cda_rail::solver::astar_based {
       const auto tr1        = tr_list.get_train(tr1); // get list of tr1
       const auto tr1_length = tr1.length;             // length tr1
       int        tr1_start  = train_state.train_pos_current[tr1]; // start
-      int        tr1_end =
-          tr1 +
-          tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
+      int        tr1_end = tr1 + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
       ///////TODO: work: add distance traveled, check if + is correct
       ///////////////////////////////////////////////////////////
       const auto tr2        = tr_list.get_train(tr2);
@@ -121,8 +119,8 @@ namespace cda_rail::solver::astar_based {
         for (size_t j = i + 1; j < num_tr; ++j) {
           if (train_state.train_edges[j] == edge) {
             int pot_collision = 1;
-            if (collision_vss_check(edge, tr_list, i, j) ==
-                1) { // checking if collision or VSS-situation
+            if (collision_vss_check(edge, tr_list, i, j) == 1) {
+              // checking if collision or VSS-situation
               /////////TODO: HOW TO DEFINE TrainList???
               //////////////////////////////////////////
               collision = 1; // collision happens
