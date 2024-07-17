@@ -25,53 +25,67 @@ namespace cda_rail::solver::astar_based {
     // train_pos, train_speed, train_routed defined in probleminstance GeneralPerformanceOptim Line 262?
     ////////////////////////
 
-    struct train_state {
-      // Define state properties
+    struct properties { //function of all the properties needed for train_state etc
+      Train train; // train properties defined in train.hpp
+      int train_pos_current; // Current position
+      Edge train_edge; // current edge
+      double cost; // Cost
+      bool VSS; // VSS info
+    };
 
-      std::vector<Train> train_current; // train properties
+    struct train_state {
+      std::vector<properties> num_tr; //vector for every train: properties
+
+      // Constructor
+      train_state(size_t n): num_tr(n) { // constructor
+      }
+
+      // Define state properties
+      // TODO: Do I need (const Edge& edge, const TrainList& tr_list)?
+      // DEFINED: Train(std::string name, int length, double max_speed, double acceleration,
+      //        double deceleration, bool tim = true) ******I need tr_list.get_train(index)???
+      // for train_state: Train(), edge, time, start, end, prev_status, cost value, VSS
+
+
+      /*std::vector<Train> train_current; // train properties
+      // TODO: change to Train()?->for Train() is position not defined.
       // std::vector<Train> train_previous;
       std::vector<int>  train_pos_current; // train_pos vector
-      std::vector<Edge> train_edges;       // which edge is the train at
+      std::vector<Edge> train_edge;       // which edge is the train at
       // std::vector<int> train_pos_previous;
       int              time;   // time stamp t0,t1 etc
       std::vector<int> num_tr; // struct Train has Train.name but not vector!
       // TODO: include cost, prev status, VSS info
-
-      //////////////// TO DELETE ////////
-      std::vector<int>  train_pos;
-      int               pos;
-      std::vector<int>  train_speed;
-      std::vector<bool> train_routed;
-      int               n;
-      std::vector<int>  start_pos;
-      std::vector<int>  goal_pos;
-      ///////////////////////////
-
-      ///////////////
-      // import the properties for the train for the initial state
-      ///////////////
+      */
     };
 
-    train_state initial_state() {
-      // initialises and return the initial state
-      train_state initial_state;
-      initial_state.train_pos    = std::vector<int>(num_tr, start_pos);
-      initial_state.train_speed  = std::vector<int>(num_tr, 0);
-      initial_state.train_routed = std::vector<int>(num_tr, false);
-      // start_pos is the vector<num_tr, startpos_of_train>
-      initial_state.n = 0;
-      return initial_state;
+
+    train_state initial_state(const TrainList& tr_list) { //TrainList is defined in train.hpp
+      size_t n = tr_list.size(); // n here is local variable for initial_state
+      train_state state(n);
+
+      for (size_t i = 0; i < n; ++i) {
+        state.num_tr[i].train = tr_list.get_train(i);
+        state.num_tr[i].cost = 0;
+        state.num_tr[i].VSS = false;
+        // TODO: train_pos_current: defined in timetable.hpp? train_edge: defined in RailwayNetwork.hpp?
+      }
+
+      return state;
     }
 
-    bool goal_state(train_state& other) {
-      // checks if all train_pos match with the pre-defined goal_pos
-      bool operator==(train_state& state) const {
-        return state.train_pos == state.goal_pos
+
+    bool goal_state(const train_state& state) {
+      size_t n = state.num_tr.size(); // n is local variable for goal_state. get size from train_state
+
+      for (size_t i = 0; i < num_tr; ++i) {
+        // TODO: if edge[i] is the same for goal->if pos[i] is same for goal->true. more like: if edge is not same: return false, else if pos is not same: return false
       }
-      // start_pos is the vector<num_tr, startpos_of_train>
-      // goal_pos is the vector<num_tr, goalpos_of_train>
-      // goal_state, when start_pos=goal_pos
+
+      return true; // edge and pos same for all trains
     }
+
+    // TODO: make fucntion: train_state update_state?????????????
 
     // TODO: heuristic function
 
@@ -79,11 +93,12 @@ namespace cda_rail::solver::astar_based {
 
     // TODO: successor function
 
+
     // used in pot_collision_check
-    bool collision_vss_check(const Edge& edge, const TrainList& tr_list, int tr1_nr,
-                             int tr2_nr) {
+    bool collision_vss_check(const train_state& state, const TrainList& tr_list, int tr1_nr, int tr2_nr) {
       // used in pot_collision_check
       // when two trains are in the same TDD, then it has to be checked if they collide
+      // TrainList is defined in train.hpp line 33
       const auto tr1 = tr_list.get_train(tr1_nr); // get list of tr1
       const auto tr1_length = tr1.length;             // length tr1
       int        tr1_start = train_state.train_pos_current[tr1_nr]; // start
@@ -105,18 +120,19 @@ namespace cda_rail::solver::astar_based {
       return false;
     }
 
+
     // potential collision check function - checks if multiple trains exist in a TDD
-    bool pot_collision_check(const TrainState& train_s) const {
+    bool pot_collision_check(const TrainState& train_state) const {
       int collision = 0; // default collision = 0. when collision detected: =1
 
       for (size_t i = 0; i < num_tr; ++i) {
        //int train_pos = train_state.train_pos_current[i]; NOT NEEDED!
-        const Edge& edge = train_state.train_edges[i];
+        const Edge& edge = train_state.train_edge[i];
 
         // if for any two trains, position further search if edge is the same
         //->first, edge check then position.
         for (size_t j = i + 1; j < num_tr; ++j) {
-          if (train_state.train_edges[j] == edge) {
+          if (train_state.train_edge[j] == edge) {
             int pot_collision = 1;
             if (collision_vss_check(edge, tr_list, i, j) == 1) {
               // checking if collision or VSS-situation
@@ -136,6 +152,9 @@ namespace cda_rail::solver::astar_based {
       ////////TODO: eliminate the successor if collision=1
       //////////////////////////////////////////////////////
     }
+
+
+
 
     // TODO: priority queue
   }
