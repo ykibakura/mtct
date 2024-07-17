@@ -1,5 +1,6 @@
 #pragma once
-#include "probleminstances/GeneralPerformanceOptimizationInstance.hpp"
+#include "datastructure/RailwayNetwork.hpp"
+#include "probleminstances/VSSGenerationTimetable.hpp"
 #include "solver/GeneralSolver.hpp"
 
 #include <filesystem>
@@ -9,9 +10,8 @@
 namespace cda_rail::solver::astar_based {
   class AStarVSSPerformanceOptimizationSolver
       : public GeneralSolver<
-            instances::GeneralPerformanceOptimizationInstance,
-            instances::SolVSSGeneralPerformanceOptimizationInstance<
-                instances::GeneralPerformanceOptimizationInstance>> {
+            instances::VSSGenerationTimetable,
+            instances::SolVSSGenerationTimetable> {
   private:
     // TODO: Implement
     // instance variables
@@ -25,12 +25,22 @@ namespace cda_rail::solver::astar_based {
     // train_pos, train_speed, train_routed defined in probleminstance GeneralPerformanceOptim Line 262?
     ////////////////////////
 
+
+
+
+
+
+    /////////////////////////
+    // Knoten(vertex) is defined but doesnt mean theyre TDD, eg. junction
+    ////////////////////////
+
     struct properties { //function of all the properties needed for train_state etc
       Train train; // train properties defined in train.hpp
       int train_pos_current; // Current position
       Edge train_edge; // current edge
       double cost; // Cost
       bool VSS; // VSS info
+      // TODO: use index?
     };
 
     struct train_state {
@@ -45,7 +55,6 @@ namespace cda_rail::solver::astar_based {
       // DEFINED: Train(std::string name, int length, double max_speed, double acceleration,
       //        double deceleration, bool tim = true) ******I need tr_list.get_train(index)???
       // for train_state: Train(), edge, time, start, end, prev_status, cost value, VSS
-
 
       /*std::vector<Train> train_current; // train properties
       // TODO: change to Train()?->for Train() is position not defined.
@@ -80,14 +89,20 @@ namespace cda_rail::solver::astar_based {
 
       for (size_t i = 0; i < num_tr; ++i) {
         // TODO: if edge[i] is the same for goal->if pos[i] is same for goal->true. more like: if edge is not same: return false, else if pos is not same: return false
+        // TODO: ALTERNATIV! End Knoten ist definiert. -> CHECK: "const auto exit_vertex = trs.get_exit();" by public
       }
 
       return true; // edge and pos same for all trains
     }
 
     // TODO: make fucntion: train_state update_state?????????????
+    // Previous state?
 
     // TODO: heuristic function
+    // USE all_edge_pairs_shortest_paths() by RailwayNetwork.hpp L543
+    // h(t)=SIGMA(d/s), where d is the shortest path to Ziel, s is max velocity
+    // d=shortest_path()+distance to next Knoten
+    // ACHTUNG:beachte shortest_path von nächstmögliche Knoten?
 
     // TODO: cost function
 
@@ -103,7 +118,8 @@ namespace cda_rail::solver::astar_based {
       const auto tr1_length = tr1.length;             // length tr1
       int        tr1_start = train_state.train_pos_current[tr1_nr]; // start
       int        tr1_end = tr1_start + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
-      ///////TODO: work: add distance traveled, check if + is correct
+      ///////TODO: work:add distance traveled, check if + is correct->Anmerkung:only one edge is displayed!what if train goes more edges
+
       ///////////////////////////////////////////////////////////
       const auto tr2 = tr_list.get_train(tr2_nr);
       const auto tr2_length = tr2.length;
@@ -130,7 +146,7 @@ namespace cda_rail::solver::astar_based {
         const Edge& edge = train_state.train_edge[i];
 
         // if for any two trains, position further search if edge is the same
-        //->first, edge check then position.
+        // ->first, edge check then position.
         for (size_t j = i + 1; j < num_tr; ++j) {
           if (train_state.train_edge[j] == edge) {
             int pot_collision = 1;
@@ -153,9 +169,6 @@ namespace cda_rail::solver::astar_based {
       //////////////////////////////////////////////////////
     }
 
-
-
-
     // TODO: priority queue
   }
 
@@ -177,13 +190,19 @@ namespace cda_rail::solver::astar_based {
             const auto tr = tr_list.get_train(i);
             const auto trl = tr.length;
 
-            const auto trs = instance.get_schedule(i);
+            const Schedule trs = instance.get_schedule(i);
             const auto entry_vertex = trs.get_entry();
+            const auto t_0 = trs.get_t_0(); // Zeit wenn Zug i bei entry_vertex auftaucht
+            const auto v_0 = trs.get_v_0();
 
-            const auto network = instance.const_n();
+            const auto exit_vertex = trs.get_exit(); // Zielknoten, wo der Zug möglichst schnell ankommen will
+
+            const Network network = instance.const_n();
             const auto v0 = network.get_edge(0).source;
             const auto v1 = network.get_edge(0).target;
             // Edge 0 = v0 -> v1
+
+            network.get_edge(0).length;
 
             const auto er = instance.const_n().get_reverse_edge_index(0);
             if (er.has_value()) {
@@ -196,9 +215,7 @@ namespace cda_rail::solver::astar_based {
             // SimpleStation ist sehr überschaubar
             // -------------------------------
             //      \--------------/
-            const auto instance_imported = cda_rail::instances::GeneralPerformanceOptimizationInstance("path_to_instance_example_gen-po");
-            const auto instance_imported_2_vss = cda_rail::instances::VSSGenerationTimetable("path_to_example-network");
-            const auto instance_imported_2 = cda_rail::instances::GeneralPerformanceOptimizationInstance::cast_from_vss_generation(instance_imported_2_vss);
+            const auto instance_imported_vss = cda_rail::instances::VSSGenerationTimetable("path_to_example-network");
 
 
             // Etwas ganz zum Schluss
