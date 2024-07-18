@@ -90,6 +90,8 @@ namespace cda_rail::solver::astar_based {
       for (size_t i = 0; i < num_tr; ++i) {
         // TODO: if edge[i] is the same for goal->if pos[i] is same for goal->true. more like: if edge is not same: return false, else if pos is not same: return false
         // TODO: ALTERNATIV! End Knoten ist definiert. -> CHECK: "const auto exit_vertex = trs.get_exit();" by public
+        //VERTEX WIRD ZURÜCKGEGEBEN
+        if ()
       }
 
       return true; // edge and pos same for all trains
@@ -103,6 +105,7 @@ namespace cda_rail::solver::astar_based {
     // h(t)=SIGMA(d/s), where d is the shortest path to Ziel, s is max velocity
     // d=shortest_path()+distance to next Knoten
     // ACHTUNG:beachte shortest_path von nächstmögliche Knoten?
+
 
     // TODO: cost function
 
