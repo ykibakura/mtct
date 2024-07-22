@@ -38,8 +38,10 @@ namespace cda_rail::solver::astar_based {
       Train train; // train properties defined in train.hpp
       int train_pos_current; // Current position
       Edge train_edge; // current edge
+      Vertex train_vertex;
       double cost; // Cost
       bool VSS; // VSS info
+
       // TODO: use index?
     };
 
@@ -84,17 +86,21 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-    bool goal_state(const train_state& state) {
-      size_t n = state.num_tr.size(); // n is local variable for goal_state. get size from train_state
+    bool goal_state(const TrainState& train_state, const TrainList& tr_list) {
+      size_t n = train_state.num_tr.size(); // n is local variable for goal_state. get size from train_state
 
-      for (size_t i = 0; i < num_tr; ++i) {
-        // TODO: if edge[i] is the same for goal->if pos[i] is same for goal->true. more like: if edge is not same: return false, else if pos is not same: return false
-        // TODO: ALTERNATIV! End Knoten ist definiert. -> CHECK: "const auto exit_vertex = trs.get_exit();" by public
-        //VERTEX WIRD ZURÜCKGEGEBEN
-        if ()
+      for (size_t i = 0; i < n; ++i) {
+        const Edge& edge = train_state.train_edge[i];
+        const Vertex& vertex = train_state.train_vertex[i];
+        const Schedule trs = instance.get_schedule(i); // evtl ist die Fkt get_schedule() nicht im instance
+        const auto exit_vertex = trs.get_exit();
+
+        if (vertex != exit_vertex || train_state.train_pos_current[i] != edge.length) {
+          return false; // ENTW train_vertex!=Zielvertex OR pos_current!=Ziellength
+          // TODO:evtl edge.length ändern:Kante von Zielknoten aufrufen->länge
+        }
       }
-
-      return true; // edge and pos same for all trains
+      return true;
     }
 
     // TODO: make fucntion: train_state update_state?????????????
@@ -103,8 +109,10 @@ namespace cda_rail::solver::astar_based {
     // TODO: heuristic function
     // USE all_edge_pairs_shortest_paths() by RailwayNetwork.hpp L543
     // h(t)=SIGMA(d/s), where d is the shortest path to Ziel, s is max velocity
-    // d=shortest_path()+distance to next Knoten
+    // d=shortest_path(size_t source_edge_id,size_t target_vertex_id)+distance to next Knoten
     // ACHTUNG:beachte shortest_path von nächstmögliche Knoten?
+
+
 
 
     // TODO: cost function
