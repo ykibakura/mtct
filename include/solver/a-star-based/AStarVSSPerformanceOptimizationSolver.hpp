@@ -45,11 +45,14 @@ namespace cda_rail::solver::astar_based {
       // TODO: use index?
     };
 
+
     struct TrainState {
       std::vector<properties> num_tr; //vector for every train: properties
+      int t; // time
+      int counter; // counter: how many times the state is updated
 
       // Constructor
-      TrainState(size_t n): num_tr(n) { // constructor
+      TrainState(size_t n): num_tr(n), time(0), counter(0) { // constructor. TODO:// state update time can be changed here!!!
       }
 
       // Define state properties
@@ -82,7 +85,7 @@ namespace cda_rail::solver::astar_based {
         // TODO: train_pos_current: defined in timetable.hpp? train_edge: defined in RailwayNetwork.hpp?
       }
 
-      return state;
+      return tr_state;
     }
 
 
@@ -107,16 +110,21 @@ namespace cda_rail::solver::astar_based {
 
     // TODO: make fucntion: tr_state update_state?????????????
     // Previous state?
+    TrainState update_state() {
+      counter++; // for each state, counter will be added. start=0->1->2->3->...
+      return tr_state;
+    }
 
     // TODO: heuristic function
     // USE all_edge_pairs_shortest_paths() by RailwayNetwork.hpp L543
     // h(t)=SIGMA(d/s), where d is the shortest path to Ziel, s is max velocity
     // d=shortest_path(size_t source_edge_id,size_t target_vertex_id)+distance to next Knoten
     // ACHTUNG:beachte shortest_path von nächstmögliche Knoten?
-    double heuristic(const TrainState& tr_state, const TrainList& tr_list, const RailwayNetwork& network) {
-      double d = 0;
+    double heuristic(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const Train& train) {
+      double h = 0; // heuristic wert
+      double d = 0; // distance
       size_t n = tr_state.num_tr.size(); // n is local variable for goal_state. get size from tr_state
-      const Network network = instance.const_n();
+
 
       for (size_t i = 0; i < n; ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
         const Edge& edge = tr_state.train_edge[i]; // KANTEN JETZT
@@ -126,21 +134,29 @@ namespace cda_rail::solver::astar_based {
 
         //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
 
-        d += network.shortest_path(edge, exit_vertex); // TODO: Wieso nicht funktioniert?
-                                                       // add shortest path
+        double d = network.shortest_path(edge, exit_vertex); // shortest path
         const auto l_to_v_next = edge.length - tr_state.train_pos_current[i]; // LÄNGE BIS DA
         d += l_to_v_next; // add length to nearest vertice
-        //c repeat for the next index(d will be continuesly added)
+        double h_index += d / train.max_speed;
+        h += h_index;
+        d = 0; // reset d=0 for next index
+        // repeat for the next index(h will be continuously added)
       }
 
-      return d;  // total d
-      //TODO:evtl use d[i] and add together at the end?
+      return h;  // total h
+      // TODO:evtl use h[i] and add together at the end?
     }
 
-
-
-
     // TODO: cost function
+    double cost(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const Train& train) {
+      double g; // cost till current state
+      size_t n = tr_state.num_tr.size();
+
+      g = tr_state.counter * tr_state.t * n; // sum of total time each train has travelled
+      double f = g + heuristic(tr_state, tr_list, network, train); // f=g+h
+
+      return f;
+    }
 
     // TODO: successor function
 
