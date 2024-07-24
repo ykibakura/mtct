@@ -125,7 +125,6 @@ namespace cda_rail::solver::astar_based {
       double d = 0; // distance
       size_t n = tr_state.num_tr.size(); // n is local variable for goal_state. get size from tr_state
 
-
       for (size_t i = 0; i < n; ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
         const Edge& edge = tr_state.train_edge[i]; // KANTEN JETZT
         const Vertex& vertex = tr_state.train_vertex[i];
@@ -141,6 +140,8 @@ namespace cda_rail::solver::astar_based {
         h += h_index;
         d = 0; // reset d=0 for next index
         // repeat for the next index(h will be continuously added)
+
+        // TODO:Maybe implement cost fkt here? Want to save cost to tr_state: tr_state.num_tr[i].cost=f->in for-Schleife
       }
 
       return h;  // total h
