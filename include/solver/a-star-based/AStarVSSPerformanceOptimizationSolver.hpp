@@ -154,8 +154,6 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-
-
     // TODO: heuristic function
     // USE all_edge_pairs_shortest_paths() by RailwayNetwork.hpp L543
     // h(t)=SIGMA(d/s), where d is the shortest path to Ziel, s is max velocity
