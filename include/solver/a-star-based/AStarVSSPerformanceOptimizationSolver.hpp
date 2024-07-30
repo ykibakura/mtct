@@ -44,16 +44,16 @@ namespace cda_rail::solver::astar_based {
      * */
 
     struct properties { //function of all the properties needed for tr_state etc
-      Train train; // train properties defined in train.hpp
-      Edge train_edge; // current edge // TODO: evtl change!
+      // Train train; // train properties defined in train.hpp
+      // Edge train_edge; // current edge // TODO: evtl change!
 
       double cost; // Cost
       bool VSS; // VSS info
 
-      int current_pos; // Current position
+      double current_pos; // Current position
 
-      int entry_vertex; // entry vertex // TODO: evtl. change?
-      int current_vertex; // current vertex
+      int entry_vertex; // entry vertex
+      int current_vertex; // current vertex // TODO: evtl. change!
       int exit_vertex; // goal vertex
 
       int entry_edge;
@@ -92,25 +92,6 @@ namespace cda_rail::solver::astar_based {
     };
 
 
-    /*TrainState initial_state(const TrainList& tr_list) { //TrainList is defined in train.hpp
-      size_t n = tr_list.size(); // n here is local variable for initial_state
-      TrainState tr_state(n);
-
-      for (size_t i = 0; i < n; ++i) {
-        tr_state.num_tr[i].train = tr_list.get_train(i);
-        tr_state.num_tr[i].cost = 0;
-        tr_state.num_tr[i].VSS = false;
-        // TODO: current_pos: defined in timetable.hpp? train_edge: defined in RailwayNetwork.hpp?
-      }
-
-      return tr_state;
-    }*/
-
-
-
-
-
-
     // TODO: BETTER VERSION INITIAL STATE
     TrainState initial_state(const TrainList& tr_list, const GeneralSolver& instance, const Network& network) { //TrainList is defined in train.hpp
       size_t n = tr_list.size(); // n here is local variable for initial_state
@@ -123,7 +104,7 @@ namespace cda_rail::solver::astar_based {
 
         const Schedule tr_schedule = instance.get_schedule(i);
         tr_state.num_tr[i].entry_vertex = tr_schedule.get_entry(); // entry vertex index: start pos initialised.
-        tr_state.num_tr[i].current_vertex = tr_state.num_tr[i].entry_vertex; // current vertex set
+        // tr_state.num_tr[i].current_vertex = tr_state.num_tr[i].entry_vertex; // NO NEED, WHAT IS CURRENT_VERTEX???
         tr_state.num_tr[i].exit_vertex = tr_schedule.get_exit(); // exit vertex
         tr_state.num_tr[i].current_pos = 0; // assuming starting point is always on vertices
         tr_state.num_tr[i].entry_edge = network.out_edges(tr_state.num_tr[i].entry_vertex); // entry edge
@@ -138,38 +119,20 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-
-    /*bool goal_state(const TrainState& tr_state, const TrainList& tr_list, const GeneralSolver& instance) {
-      size_t n = tr_state.num_tr.size(); // n is local variable for goal_state. get size from tr_state
-
-      for (size_t i = 0; i < n; ++i) {
-        const Edge& edge = tr_state.train_edge[i];
-        const Vertex& vertex = tr_state.train_vertex[i];
-        const Schedule trs = instance.get_schedule(i); // evtl ist die Fkt get_schedule() nicht im instance
-        const auto exit_vertex = trs.get_exit();
-
-        if (vertex != exit_vertex || tr_state.num_tr[i].current_pos != edge.length) {
-          return false; // ENTW train_vertex!=Zielvertex OR pos_current!=Ziellength
-          // TODO: evtl edge.length ändern:Kante von Zielknoten aufrufen->länge
-          // const auto e0 = network.get_vertices(v0);
-          // e0 muss einzig sein, da v0 endknoten
-        }
-      }
-      return true;
-    }*/
-
-
-
     // TODO: BETTER VERSION GOAL STATE
     bool goal_state(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance, const Train& train) {
       size_t n = tr_state.num_tr.size(); // n is local variable for goal_state. get size from tr_state
 
-      for (size_t i = 0; i < n; ++i) {
-        const Schedule tr_schedule = instance.get_schedule(i);
+      for (size_t i = 0; i < n; ++i) { // i: train index
+        const Schedule tr_schedule = instance.get_schedule(i); // TODO: evtl delete it
         // tr_state.num_tr[i].exit_vertex = tr_schedule.get_exit(); //get exit vertex WURDE IN INI_STATE GEMACHT
-        int exitedge_len = network.get_edge(tr_state.num_tr[i].exit_edge).length;
-        if (tr_state.num_tr[i].exit_vertex != tr_state.num_tr[i].current_vertex || train.max_speed * tr_state.t <= exitedge_len) {
+        double exitedge_len = network.get_edge(tr_state.num_tr[i].exit_edge).length;
+
+        if (tr_state.num_tr[i].exit_vertex != network.get_edge(tr_state.num_tr[i].exit_edge).target || tr_state.num_tr[i].current_pos < exitedge_len + tr_list.get_train(i).length) {
+          // if train is at exit_edge AND length<=(edge.length+tr.length(___._[]_>))
+          // TODO:tr.length: CHANGE TO tr_list.get_train(size_t index).length;
           return false;
+          //exit vertex:
         }
         /*if (tr_state.num_tr[i].exit_vertex != tr_state.num_tr[i].current_vertex || tr_state.num_tr[i].current_pos != 0) {
           return false; // ENTW exit_vertex!=current_vertex OR pos_current!=0
@@ -182,16 +145,10 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-
-
-
-
-
-
-    // TODO: make fucntion: tr_state update_state?????????????
+    // TODO: make fucntion: tr_state update_state
     // Previous state?
-    TrainState update_state(const TrainState& tr_state, const Network& network, const Train& train) {
-      successors(tr_state, network, train); // find successors
+    TrainState update_state(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+      successors(tr_state, tr_list, network); // find successors
       counter++; // for each state, counter will be added. start=0->1->2->3->...
       return tr_state;
     }
@@ -204,23 +161,21 @@ namespace cda_rail::solver::astar_based {
     // h(t)=SIGMA(d/s), where d is the shortest path to Ziel, s is max velocity
     // d=shortest_path(size_t source_edge_id,size_t target_vertex_id)+distance to next Knoten
     // ACHTUNG:beachte shortest_path von nächstmögliche Knoten?
-    double heuristic(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const Train& train) {
+    double heuristic(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       double h = 0; // heuristic wert
       double d = 0; // distance
       size_t n = tr_state.num_tr.size(); // n is local variable for goal_state. get size from tr_state
 
       for (size_t i = 0; i < n; ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
-        const Edge& edge = tr_state.train_edge[i]; // KANTEN JETZT // TODO: CHANGE!
-        const Vertex& vertex = tr_state.train_vertex[i];
-        const Schedule tr = instance.get_schedule(i); // evtl ist die Fkt get_schedule() nicht im instance
-        const auto exit_vertex = tr.get_exit() // ENDKNOTEN
+        int current_edge = tr_state.num_tr[i].current_edge;
+        int exit_vertex = tr_state.num_tr[i].exit_vertex; // ENDKNOTEN
 
         //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
 
-        double d = network.shortest_path(edge, exit_vertex); // shortest path
-        const auto l_to_v_next = edge.length - tr_state.num_tr[i].current_pos; // LÄNGE BIS DA
-        d += l_to_v_next; // add length to nearest vertice
-        double h_index += d / train.max_speed;
+        double d = network.shortest_path(current_edge, exit_vertex); // shortest path TODO:WHY NOT WORKING?
+        double l_to_v_next = network.get_edge(current_edge).length - tr_state.num_tr[i].current_pos; // LÄNGE BIS DA
+        d += l_to_v_next; // add length to nearest vertex
+        double h_index += d / tr_list.get_train(i).max_speed;
         h += h_index;
         d = 0; // reset d=0 for next index
         // repeat for the next index(h will be continuously added)
@@ -234,47 +189,45 @@ namespace cda_rail::solver::astar_based {
 
 
     // TODO: cost function
-    double cost(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const Train& train) {
+    double cost(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       double g; // cost till current state
       size_t n = tr_state.num_tr.size();
 
       g = tr_state.counter * tr_state.t * n; // sum of total time each train has travelled
-      double f = g + heuristic(tr_state, tr_list, network, train); // f=g+h
+      double f = g + heuristic(tr_state, tr_list, network); // f=g+h
 
       return f;
     }
 
 
     // TODO: successor function
-    std::vector<TrainState> successors(const TrainState& tr_state, const Network& network, const Train& train) {
+    std::vector<TrainState> successors(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       size_t n = tr_state.num_tr.size();
 
       for (size_t i = 0; i < n; ++i) {
         // for all trains, they move to next point by the max speed
 
-        // auto v1 = network.get_edge((currentedge)).target; get target vertex
-        // auto e_next = network.out_edges(v1); get out edges
-        // double d = tr_state.t * train.max_speed distance travelled till the next state
-        // d_current_edge = edge.length - tr_state.num_tr[i].current_pos; distance to v1
-        // if (d - d_current_edge < e_next.length) {
-        // tr_state.num_tr[i].current_pos = e_next.length-(d-d.current_edge)
-        // speicher Knoten, Kanten usw->nachfolger
-        // }
-        // else
-        // for outedges:
+        std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, train.max_speed * tr_state.t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_edge);
+        // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
+        size_t m = paths.size;
+        for (size_t j = 0; j < m; ++j) { // [j] shows for each possible path
+          size_t l = paths[j].size;
+          for (size_t k = 0; k < l; ++k) { // looking at every possible path: for each Kantenindex
+            double betwlength = tr_list.get_train(i).max_speed * tr_state.t - network.get_edge(k).length;
 
-        int testedge = tr_state.num_tr[i].current_edge; //= vertex.headway?
-        int edgelength = network.get_edge(testedge).length;
-        if (train.max_speed * tr_state.t << edgelength) { // train is in same edge as prev_state, only 1 possible option
-          tr_state.num_tr[i].current_edge = testedge;
-          tr_state.num_tr[i].current_pos += train.max_speed * tr_state.t;
-        }
-        else { // all the next edges need to be checked
-          auto v_next = network.get_edge((currentedge)).target; //includes all the next vertices
-          // function to find edge
-
+          }
+          tr_state.num_tr[i].current_edge = paths[j][l-1]; // for each possible path: the last edge is the current one
+          tr_state.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length + betwlength;
+          // betwlegth=-(distance of current edge which is not yet travelled)
 
         }
+        // get_successors(tr_state.num_tr[i].current_edge)
+        // TODO: DIFFERENT SUCCESSORS NEED TO BE STORED IN A DIFFERENT SPACE. THEN HERE COLLISION CHECK?
+        if (pot_collision_check(tr_state, tr_list) == 0) {
+          // TODO: VSS function and remain as a successor
+        }
+
+      }
         /* tr_state.num_tr[i].current_vertex shows the current vertex.
          * 1. find current edge with current_vertex. (vertex.headway?)
          * 2. get length by ??? = network.get_edge(0).length;
@@ -283,14 +236,13 @@ namespace cda_rail::solver::astar_based {
          * 5. check how many vertices(edges) are there: sizeof v_next
          * 6. get possible next edges, like in 1.
          * 7. check length
-         * 8. so on... TODO: Potentially while function?
+         * 8. so on...
          * */
 
-      }
+
 
       return ;
     }
-
 
 
     // used in pot_collision_check
@@ -300,15 +252,15 @@ namespace cda_rail::solver::astar_based {
       // TrainList is defined in train.hpp line 33
       const auto tr1 = tr_list.get_train(tr1_nr); // get list of tr1
       const auto tr1_length = tr1.length;             // length tr1
-      int        tr1_start = tr_state.num_tr[tr1_nr].current_pos; // start
-      int        tr1_end = tr1_start + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
-      ///////TODO: work:add distance traveled, check if + is correct->Anmerkung:only one edge is displayed!what if train goes more edges
+      double     tr1_start = tr_state.num_tr[tr1_nr].current_pos; // start
+      double     tr1_end = tr1_start + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
+      // TODO: by tr1_end&tr2_end calculation: assumed theyre in the same edge - d.h. theyre in the same direction!
+      // TODO: work:add distance traveled, check if + is correct->Anmerkung:only one edge is displayed!what if train goes more edges
 
-      ///////////////////////////////////////////////////////////
       const auto tr2 = tr_list.get_train(tr2_nr);
       const auto tr2_length = tr2.length;
-      int        tr2_start = tr_state.num_tr[tr2_nr].current_pos;
-      int        tr2_end = tr2_start + tr2_length;
+      double     tr2_start = tr_state.num_tr[tr2_nr].current_pos;
+      double     tr2_end = tr2_start + tr2_length;
 
       // VERGLEICHE DIE tr1_length & tr2_length:
       //(tr1_start, tr1_end) is section occupied
@@ -322,39 +274,39 @@ namespace cda_rail::solver::astar_based {
 
 
     // potential collision check function - checks if multiple trains exist in a TDD
-    bool pot_collision_check(const TrainState& tr_state) const {
+    bool pot_collision_check(const TrainState& tr_state, const TrainList& tr_list) const {
+      size_t n = tr_state.num_tr.size();
       int collision = 0; // default collision = 0. when collision detected: =1
+      int pot_collision = 0; //potential collision, when 2+ trains are in same TDD
 
-      for (size_t i = 0; i < num_tr; ++i) {
-       //int train_pos = tr_state.num_tr[i].current_pos; NOT NEEDED!
-        const Edge& edge = tr_state.train_edge[i];
-
+      for (size_t i = 0; i < n; ++i) {
         // if for any two trains, position further search if edge is the same
         // ->first, edge check then position.
-        for (size_t j = i + 1; j < num_tr; ++j) {
-          if (tr_state.train_edge[j] == edge) {
-            int pot_collision = 1;
-            if (collision_vss_check(edge, tr_list, i, j) == 1) {
+        for (size_t j = i + 1; j < n; ++j) {
+          if (tr_state.num_tr[j].current_edge == tr_state.num_tr[i].current_edge) {
+            // TODO: assumed theyre in the same edge!!! Not in the same TDD
+            pot_collision = 1;
+            if (collision_vss_check(tr_state, tr_list, i, j) == 1) {
               // checking if collision or VSS-situation
-              /////////TODO: HOW TO DEFINE TrainList???
-              //////////////////////////////////////////
               collision = 1; // collision happens
               return true; // collision detected. not valid successor. (break)
             }
+            else {
+              // VSS can solve the problem. Still remains as potential successor
+              // TODO: implement TDD functions HERE OR BY successor()
+            }
           }
-          ///////// TODO: edge with other direction is not yet considered!!!
-          //////////////////////////////////////////////////////////////
         }
         return false; //When no collision(potential VSS):return false
       }
 
       return true;
       ////////TODO: eliminate the successor if collision=1
-      //////////////////////////////////////////////////////
     }
 
     // TODO: priority queue
   }
+
 
 
   public:
