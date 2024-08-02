@@ -7,7 +7,16 @@
 #include <string>
 #include <utility>
 
+
 namespace cda_rail::solver::astar_based {
+
+  struct CompareTrainState {
+    bool operator()(const TrainState& t1, const TrainState& t2) {
+      // COM ADDED: Compare based on cost, lower cost has higher priority
+      return t1.cost > t2.cost;
+    }
+  };
+
   class AStarVSSPerformanceOptimizationSolver
       : public GeneralSolver<
             instances::VSSGenerationTimetable,
@@ -43,11 +52,13 @@ namespace cda_rail::solver::astar_based {
      * (neibouring_ecges()<vector>:finde alle verbundene Kanten zu einem Knoten
      * */
 
-    struct properties { //function of all the properties needed for tr_state etc
+    // priority queue for managing TrainState objects
+    std::priority_queue<TrainState, std::vector<TrainState>, CompareTrainState> pq;
+
+
+    struct Properties { //function of all the properties needed for tr_state etc
       // Train train; // train properties defined in train.hpp
       // Edge train_edge; // current edge
-
-      double cost; // Cost
       bool VSS; // VSS info
 
       double current_pos; // Current position
@@ -58,19 +69,19 @@ namespace cda_rail::solver::astar_based {
       int entry_edge;
       int current_edge; // current edge
       int exit_edge;
-
       // TODO: use index?
     };
 
 
     struct TrainState {
-      std::vector<properties> num_tr; //vector for every train: properties
+      std::vector<Properties> num_tr; //vector for every train: properties
       int t; // time
-      int delta_t; // delta t
+      int delta_t = 1; // delta t
       int counter; // counter: how many times the state is updated
+      double cost;
 
       // Constructor
-      TrainState(size_t n): num_tr(n), time(0), delta_t(0), counter(0) { // constructor. TODO:// state update time can be changed here!!!
+      TrainState(size_t n): num_tr(n), t(0), counter(0), { // constructor. TODO:// state update time can be changed here!!!
       }
 
     };
@@ -79,12 +90,11 @@ namespace cda_rail::solver::astar_based {
     // TODO: BETTER VERSION INITIAL STATE
     TrainState initial_state(TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance) {
       size_t n = tr_list.size(); // n here is local variable for initial_state
+      tr_state.cost = 0;
 
       for (size_t i = 0; i < n; ++i) {
         const Schedule tr_schedule = instance.get_schedule(i);
         // variables:cost,vss,current_pos,entry/exit_vertex,entry/current/exit_edge
-
-        tr_state.num_tr[i].cost = 0;
         tr_state.num_tr[i].VSS = false;
 
         tr_state.num_tr[i].current_pos = 0; // assuming starting point is always on vertices
@@ -130,18 +140,27 @@ namespace cda_rail::solver::astar_based {
 
       std::vector<TrainState> next_states = successors(tr_state, tr_list, network);
 
-      for (size_t i = 0; i < next_states.size(); ++i) {
-        if (pot_collision_check(next_states[i],tr_list) == 1) { // collision
+      for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
+        if (pot_collision_check(next_states[i], tr_list) == 1) { // collision
           // TODO: Delete from potential successors
         }
         else { // no collision
-          double cost = cost(next_states[i], tr_list, network);
+          next_states[i].cost = cost(next_states[i], tr_list, network);
+          pq.push(next_states[i]); // Add the valid state to the priority queue
         }
 
       }
-      return tr_state;
+      return next_states;
     }
 
+
+    // TODO: priority queue
+    struct PriorityQueue {
+      bool operator()(const TrainState& t1, const TrainState& t2) {
+        // COM ADDED: Compare based on cost, lower cost has higher priority
+        return t1.cost > t2.cost;
+      }
+    };
 
     // TODO: heuristic function
     // USE all_edge_pairs_shortest_paths() by RailwayNetwork.hpp L543
@@ -290,10 +309,6 @@ namespace cda_rail::solver::astar_based {
       // TODO: implement TDD functions HERE OR BY successor()
       return false; //When no collision(potential VSS):return false
     }
-
-
-
-    // TODO: priority queue
 
   }
 
