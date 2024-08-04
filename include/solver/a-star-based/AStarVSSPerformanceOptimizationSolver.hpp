@@ -12,7 +12,7 @@ namespace cda_rail::solver::astar_based {
 
   struct CompareTrainState {
     bool operator()(const TrainState& t1, const TrainState& t2) {
-      // COM ADDED: Compare based on cost, lower cost has higher priority
+      // Compare the cost: lower cost has higher priority
       return t1.cost > t2.cost;
     }
   };
@@ -22,26 +22,6 @@ namespace cda_rail::solver::astar_based {
             instances::VSSGenerationTimetable,
             instances::SolVSSGenerationTimetable> {
   private:
-    // TODO: Implement
-    // instance variables
-    int    dt    = -1;
-    size_t num_t = 0; // no need? 7.7.24
-    // std::vector<int> num_tr; //struct Train has Train.name but not vector! needed
-    size_t num_edges    = 0; // no need? 7.7.24
-    size_t num_vertices = 0; // no need? 7.7.24
-
-    /////////////////////////
-    // train_pos, train_speed, train_routed defined in probleminstance GeneralPerformanceOptim Line 262?
-    ////////////////////////
-
-
-
-
-
-
-    /////////////////////////
-    // Knoten(vertex) is defined but doesnt mean theyre TDD, eg. junction
-    ////////////////////////
 
     /*
      * 29.7 Meeting
@@ -133,25 +113,27 @@ namespace cda_rail::solver::astar_based {
 
     // TODO: make fucntion: tr_state update_state
     // Previous state?
-    TrainState update_state(TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    std::vector<TrainState> update_state(TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       // 1.find successors 2.check collision,vss 3.check cost
       tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
       tr_state.t += tr_state.delta_t;
 
-      std::vector<TrainState> next_states = successors(tr_state, tr_list, network);
+      std::vector<TrainState> next_states = successors(tr_state, tr_list, network); // set of next states
+      std::vector<TrainState> next_states_valid; // list of valid next states
 
       for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
         if (pot_collision_check(next_states[i], tr_list) == 1) { // collision
-          // TODO: Delete from potential successors
+          // TODO: Delete from potential successors: next_states_valid is the solution??
         }
         else { // no collision
           next_states[i].cost = cost(next_states[i], tr_list, network);
-          pq.push(next_states[i]); // Add the valid state to the priority queue
+          next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
         }
-
       }
-      return next_states;
+      return next_states_valid;
     }
+    // cost:update(),vss:vss(comes after pot_collision_check,
+    // current_pos:successors(),entry/exit_vertex:NO UPDATE,entry/current/exit_edge:current:successors()
 
 
     // TODO: priority queue
@@ -214,13 +196,13 @@ namespace cda_rail::solver::astar_based {
     // TODO: successor function
     std::vector<TrainState> successors(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       size_t n = tr_state.num_tr.size();
-      std::vector<TrainState> successor_state; //TODO: work on return value, Now it is wrong
+      std::vector<TrainState> next_states; // list of next states. TODO: work on return value, Now it is wrong
 
       for (size_t i = 0; i < n; ++i) {
         // for all trains, they move to next point by the max speed
         double total_length = tr_list.get_train(i).max_speed * tr_state.delta_t;
         double remain_length = total_length;
-        TrainState new_state = tr_state; // copies the current state
+        TrainState state = tr_state; // copies the current state to new_state
 
         std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_edge);
         // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
@@ -233,11 +215,11 @@ namespace cda_rail::solver::astar_based {
             remain_length -= network.get_edge(k).length; //remain_length always get subtracted by the edgelength
           }
 
-          new_state.num_tr[i].current_edge = paths[j][l-1]; // for each possible path: the last edge is the current one
-          new_state.num_tr[i].current_pos = network.get_edge(new_state.num_tr[i].current_edge).length + remain_length;
+          state.num_tr[i].current_edge = paths[j][l-1]; // for each possible path: the last edge is the current one
+          state.num_tr[i].current_pos = network.get_edge(state.num_tr[i].current_edge).length + remain_length;
           // remain_length=-(distance of current edge which is not yet travelled)
           remain_length = total_length; //initialise again for next for-schleife
-          successor_state.push_back(new_state); // add new state to successor_state
+          next_states.push_back(state); // add new state to successor_state
         }
         // get_successors(tr_state.num_tr[i].current_edge)
 
@@ -256,7 +238,7 @@ namespace cda_rail::solver::astar_based {
          * 8. so on...
          * */
 
-      return successor_state;
+      return next_states;
     }
 
 
