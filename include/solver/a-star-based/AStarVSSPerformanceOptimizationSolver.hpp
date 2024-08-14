@@ -10,13 +10,6 @@
 
 namespace cda_rail::solver::astar_based {
 
-  struct CompareTrainState {
-    bool operator()(const TrainState& t1, const TrainState& t2) {
-      // Compare the cost: lower cost has higher priority
-      return t1.cost > t2.cost;
-    }
-  };
-
   class AStarVSSPerformanceOptimizationSolver
       : public GeneralSolver<
             instances::VSSGenerationTimetable,
@@ -30,7 +23,18 @@ namespace cda_rail::solver::astar_based {
      * get_successors()<vector>:von Kante zu nextmögliche Kante zu finden: bei successors() gut
      * all_paths_of_length_starting_in_edge()<vector>:finde alle mögliche Wege für bestimmten Länge
      * (neibouring_ecges()<vector>:finde alle verbundene Kanten zu einem Knoten
-     * */
+     *
+     * 14.8 Meeting
+     * priority_queue Bsp: look at shortest path by .cpp
+     * std::priority_queue<std::pair<double, size_t>, std::vector<std::pair<double, size_t>>, std::greater<>>
+     * 2+ edges in same TTD: get_unbreakable_section_containing_edge()
+     * fork the file!
+     * for the next_edges_valid: maybe save it to some public(?) list other than train_states?
+     * then identify as [t][index]
+     * VSS: after the edges are broken: do not change edge feature, d.h. has same edge nr.
+     * identify them as length.
+     * Mitte der Züge OR Mitte der Strecke(möglichst): some research!
+
 
     // priority queue for managing TrainState objects
     std::priority_queue<TrainState, std::vector<TrainState>, CompareTrainState> pq;
@@ -49,7 +53,6 @@ namespace cda_rail::solver::astar_based {
       int entry_edge;
       int current_edge; // current edge
       int exit_edge;
-      // TODO: use index?
     };
 
 
@@ -61,7 +64,7 @@ namespace cda_rail::solver::astar_based {
       double cost;
 
       // Constructor
-      TrainState(size_t n): num_tr(n), t(0), counter(0), { // constructor. TODO:// state update time can be changed here!!!
+      TrainState(size_t n): num_tr(n), t(0), counter(0), { // constructor. TODO: state update time can be changed here!!!
       }
 
     };
@@ -127,6 +130,7 @@ namespace cda_rail::solver::astar_based {
         }
         else { // no collision
           next_states[i].cost = cost(next_states[i], tr_list, network);
+          // TODO: speichere die daten zu next_states_valid
           next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
         }
       }
@@ -140,7 +144,7 @@ namespace cda_rail::solver::astar_based {
     struct PriorityQueue {
       bool operator()(const TrainState& t1, const TrainState& t2) {
         // COM ADDED: Compare based on cost, lower cost has higher priority
-        return t1.cost > t2.cost;
+        return t1.cost  < t2.cost;
       }
     };
 
@@ -155,13 +159,10 @@ namespace cda_rail::solver::astar_based {
       size_t n = tr_state.num_tr.size(); // n is local variable for goal_state. get size from tr_state
 
       for (size_t i = 0; i < n; ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
-        int current_edge = tr_state.num_tr[i].current_edge;
-        int exit_vertex = tr_state.num_tr[i].exit_vertex; // ENDKNOTEN
-
         //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
 
-        double d = network.shortest_path(current_edge, exit_vertex); // shortest path TODO:WHY NOT WORKING?
-        double l_to_v_next = network.get_edge(current_edge).length - tr_state.num_tr[i].current_pos; // LÄNGE BIS DA
+        double d = network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex); // shortest path TODO:WHY NOT WORKING?
+        double l_to_v_next = network.get_edge(tr_state.num_tr[i].current_edge).length - tr_state.num_tr[i].current_pos; // LÄNGE BIS DA
         d += l_to_v_next; // add length to nearest vertex
         double h_index = d / tr_list.get_train(i).max_speed;
         h += h_index;
@@ -171,7 +172,6 @@ namespace cda_rail::solver::astar_based {
 
         // TODO:Maybe implement cost fkt here? Want to save cost to tr_state: tr_state.num_tr[i].cost=f->in for-Schleife
       }
-
       return h;  // total h
       // TODO:evtl use h[i] and add together at the end?
     }
@@ -196,7 +196,7 @@ namespace cda_rail::solver::astar_based {
     // TODO: successor function
     std::vector<TrainState> successors(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       size_t n = tr_state.num_tr.size();
-      std::vector<TrainState> next_states; // list of next states. TODO: work on return value, Now it is wrong
+      std::vector<TrainState> next_states; // list of next states.
 
       for (size_t i = 0; i < n; ++i) {
         // for all trains, they move to next point by the max speed
@@ -248,7 +248,7 @@ namespace cda_rail::solver::astar_based {
       // when two trains are in the same TDD, then it has to be checked if they collide
       // TrainList is defined in train.hpp line 33
 
-      double tr1_length = tr_list.get_train(tr1_nr).length;             // length tr1
+      double tr1_length = tr_list.get_train(tr1_nr).length; // length tr1
       double tr1_start = tr_state.num_tr[tr1_nr].current_pos; // start
       double tr1_end = tr1_start + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
       // TODO: by tr1_end&tr2_end calculation: assumed theyre in the same edge - d.h. theyre in the same direction!
@@ -279,7 +279,6 @@ namespace cda_rail::solver::astar_based {
           if (tr_state.num_tr[j].current_edge == tr_state.num_tr[i].current_edge) {
             // TODO: assumed theyre in the same edge!!! Not in the same TDD
             if (collision_vss_check(tr_state, tr_list, i, j) == 1) { // checking if collision or VSS-situation
-              // TODO: eliminate the successor if collision=1
               return true; // collision detected. not valid successor. (break)
             }
             else {
