@@ -28,17 +28,22 @@ namespace cda_rail::solver::astar_based {
      * priority_queue Bsp: look at shortest path by .cpp
      * std::priority_queue<std::pair<double, size_t>, std::vector<std::pair<double, size_t>>, std::greater<>>
      * 2+ edges in same TTD: get_unbreakable_section_containing_edge()
+     * is_on_same_unbreakable_section(e1,e2) gives if theyre in same ttd
+     * ->after collision check:if TTD möglich->this fkt and if false then you can implement the ttd section
+     * (new function?)
      * fork the file!
      * for the next_edges_valid: maybe save it to some public(?) list other than train_states?
      * then identify as [t][index]
      * VSS: after the edges are broken: do not change edge feature, d.h. has same edge nr.
      * identify them as length.
      * Mitte der Züge OR Mitte der Strecke(möglichst): some research!
-
+     * */
 
     // priority queue for managing TrainState objects
-    std::priority_queue<TrainState, std::vector<TrainState>, CompareTrainState> pq;
+    std::priority_queue<std::pair<double, size_t>,
+                        std::vector<std::pair<double, size_t>>, std::greater<>> pq;
 
+    std::vector<std::vector<size_t>> prev_states;
 
     struct Properties { //function of all the properties needed for tr_state etc
       // Train train; // train properties defined in train.hpp
@@ -70,7 +75,7 @@ namespace cda_rail::solver::astar_based {
     };
 
 
-    // TODO: BETTER VERSION INITIAL STATE
+    // initial state
     TrainState initial_state(TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance) {
       size_t n = tr_list.size(); // n here is local variable for initial_state
       tr_state.cost = 0;
@@ -96,7 +101,7 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-    // TODO: BETTER VERSION GOAL STATE
+    // goal state
     bool goal_state(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       size_t n = tr_state.num_tr.size(); // n is local variable for goal_state. get size from tr_state
       double exitedge_len;
@@ -114,9 +119,8 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-    // TODO: make fucntion: tr_state update_state
-    // Previous state?
-    std::vector<TrainState> update_state(TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    // update_state
+    bool update_state(TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       // 1.find successors 2.check collision,vss 3.check cost
       tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
       tr_state.t += tr_state.delta_t;
@@ -125,30 +129,32 @@ namespace cda_rail::solver::astar_based {
       std::vector<TrainState> next_states_valid; // list of valid next states
 
       for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
-        if (pot_collision_check(next_states[i], tr_list) == 1) { // collision
-          // TODO: Delete from potential successors: next_states_valid is the solution??
-        }
-        else { // no collision
+        if (pot_collision_check(next_states[i], tr_list, network) == 0) { // no collision
           next_states[i].cost = cost(next_states[i], tr_list, network);
           // TODO: speichere die daten zu next_states_valid
           next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
+        // TODO: is it correct?
         }
       }
-      return next_states_valid;
+
+      prev_states[tr_state.t] = next_states_valid; // copy the valid states to prev_states[t]
+      if (next_states_valid.empty() != 1) {
+        if (prev_states.size() <= tr_state.t / tr_state.delta_t) { // Bsp 15s with 0,5,10,15: size()<=3:add
+          prev_states.resize(tr_state.t / tr_state.delta_t + 1); // Resize prev_states
+        }
+        if (prev_states[tr_states.t].size() < next_states_valid.size()) { // if less size than next states valid
+          prev_states[tr_states.t].resize(next_states_valid.size() + 1); // Resize prev_states
+        }
+        prev_states[tr_state.t] = next_states_valid; // copy the valid states to prev_states[t]
+        return true;
+      }
+      return false;
     }
     // cost:update(),vss:vss(comes after pot_collision_check,
     // current_pos:successors(),entry/exit_vertex:NO UPDATE,entry/current/exit_edge:current:successors()
 
 
-    // TODO: priority queue
-    struct PriorityQueue {
-      bool operator()(const TrainState& t1, const TrainState& t2) {
-        // COM ADDED: Compare based on cost, lower cost has higher priority
-        return t1.cost  < t2.cost;
-      }
-    };
-
-    // TODO: heuristic function
+    // heuristic function
     // USE all_edge_pairs_shortest_paths() by RailwayNetwork.hpp L543
     // h(t)=h(t)=SIGMA(h_idx)=SIGMA(d/s), where d is the shortest path to Ziel, s is max velocity
     // d=shortest_path(size_t source_edge_id,size_t target_vertex_id)+distance to next Knoten
@@ -169,7 +175,6 @@ namespace cda_rail::solver::astar_based {
         d = 0;
         h_index = 0;// reset d=0 for next index
         // repeat for the next index(h will be continuously added)
-
         // TODO:Maybe implement cost fkt here? Want to save cost to tr_state: tr_state.num_tr[i].cost=f->in for-Schleife
       }
       return h;  // total h
@@ -177,11 +182,11 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-    // TODO: cost function
+    // cost function
     double cost(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       size_t n = tr_state.num_tr.size();
       double g = 0; // SIGMA(g_index)
-      double g_index = 0; // cost till current state
+      double g_index; // cost till current state
 
       for (size_t i = 0; i < n; ++i) {
         g_index = tr_list.get_train(i).max_speed * tr_state.t; // sum of total time each train has travelled
@@ -193,7 +198,7 @@ namespace cda_rail::solver::astar_based {
     }
 
 
-    // TODO: successor function
+    // successor function
     std::vector<TrainState> successors(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       size_t n = tr_state.num_tr.size();
       std::vector<TrainState> next_states; // list of next states.
@@ -247,11 +252,12 @@ namespace cda_rail::solver::astar_based {
       // used in pot_collision_check
       // when two trains are in the same TDD, then it has to be checked if they collide
       // TrainList is defined in train.hpp line 33
+      /* TODO: EXPLANATION. this fkt is called ONLY when theyre in the same edge (dh going to same direction)
+       * so, no need to refer on other direction calculation! */
 
       double tr1_length = tr_list.get_train(tr1_nr).length; // length tr1
       double tr1_start = tr_state.num_tr[tr1_nr].current_pos; // start
       double tr1_end = tr1_start + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
-      // TODO: by tr1_end&tr2_end calculation: assumed theyre in the same edge - d.h. theyre in the same direction!
       // TODO: work:add distance traveled, check if + is correct->Anmerkung:only one edge is displayed!what if train goes more edges
 
       double tr2_length = tr_list.get_train(tr2_nr).length;
@@ -270,26 +276,71 @@ namespace cda_rail::solver::astar_based {
 
 
     // potential collision check function - checks if multiple trains exist in a TDD
-    bool pot_collision_check(const TrainState& tr_state, const TrainList& tr_list) {
+    bool pot_collision_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       size_t n = tr_state.num_tr.size();
 
       for (size_t i = 0; i < n; ++i) { // if for any two trains, position further search if edge is the same
         // ->first, edge check then position.
         for (size_t j = i+1; j < n; ++j) {
-          if (tr_state.num_tr[j].current_edge == tr_state.num_tr[i].current_edge) {
-            // TODO: assumed theyre in the same edge!!! Not in the same TDD
-            if (collision_vss_check(tr_state, tr_list, i, j) == 1) { // checking if collision or VSS-situation
+          if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].current_edge, tr_state.num_tr[j].current_edge) == 1 || tr_state.num_tr[i].current_edge == network.get_reverse_edge_index(tr_state.num_tr[j].current_edge))
+            // theyre in an unbreakable section OR theyre in the same section going other way
+            return true; // two trains cannot be in unbreakable section. not valid successor. (break)
+          else if (tr_state.num_tr[j].current_edge == tr_state.num_tr[i].current_edge) {
+            // theyre in the same edge (same direction)
+            if (collision_vss_check(tr_state, tr_list, i, j) == 1) { // if collision happening
               return true; // collision detected. not valid successor. (break)
             }
             else {
-              // else: VSS can solve the problem. Still remains as potential successor
+              insert_new_vss(tr_state, tr_list, network, i, j); // TDD section
+              // TODO: vss added needs to be marked somewhere?
             }
           }
         }
       }
-      // TODO: implement TDD functions HERE OR BY successor()
       return false; //When no collision(potential VSS):return false
     }
+
+    // insert VSS
+    bool insert_new_vss(TrainState& tr_state, const TrainList& tr_list, const Network& network, int i, int j) {
+      // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
+      double middle_point = network.get_edge(tr_state.num_tr[i].current_edge).length / 2;
+      if (tr_state.num_tr[i].current_pos + tr_list.get_train(i).length > tr_state.num_tr[j].current_pos) {
+        // if i vorne, j hinten
+        if (tr_state.num_tr[i].current_pos + tr_list.get_train(i).length > middle_point && tr_state.num_tr[j].current_pos < middle_point) {
+          // if the middle point is between the trains
+          // TODO: add VSS in the middle: Bsp vss_point = middle_point;
+        }
+        else if (tr_state.num_tr[i].current_pos + tr_list.get_train(i).length > middle_point) {
+          // two trains are past middle point
+          // TODO: add VSS by the second train: Bsp vss_point = tr_state.num_tr[j].current_pos;
+        }
+        else {
+          // two trains are before middle point
+          // TODO: add VSS by the first train: Bsp vss_point = tr_state.num_tr[i].current_pos + tr_list.get_train(i).length;
+        }
+      }
+      else {
+        // j vorne, i hinten
+        if (tr_state.num_tr[j].current_pos + tr_list.get_train(j).length > middle_point && tr_state.num_tr[i].current_pos < middle_point) {
+          // if the middle point is between the trains
+          // TODO: add VSS in the middle: Bsp vss_point = middle_point;
+        }
+        else if (tr_state.num_tr[j].current_pos + tr_list.get_train(j).length > middle_point) {
+          // two trains are past middle point
+          // TODO: add VSS by the second train: Bsp vss_point = tr_state.num_tr[i].current_pos;
+        }
+        else {
+          // two trains are before middle point
+          // TODO: add VSS by the first train: Bsp vss_point = tr_state.num_tr[j].current_pos + tr_list.get_train(j).length;
+        }
+      }
+      return true;
+    }
+
+
+
+
+
 
   }
 
