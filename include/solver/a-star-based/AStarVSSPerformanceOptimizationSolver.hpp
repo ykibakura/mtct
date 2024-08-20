@@ -50,6 +50,7 @@ namespace cda_rail::solver::astar_based {
       // Edge train_edge; // current edge
       bool VSS; // VSS info
       std::vector<size_t> routed_edges; // edges travelled
+      std::vector<size_t> routed_edges_current; // edges travelled current state
 
       double current_pos; // Current position
 
@@ -145,6 +146,7 @@ namespace cda_rail::solver::astar_based {
         }
         prev_states[tr_state.t] = next_states_valid; // copy the valid states to prev_states[t]
         return true;
+        // TODO: check size() or capacity()
       }
       return false;
     }
@@ -257,9 +259,15 @@ namespace cda_rail::solver::astar_based {
         for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
           size_t l = paths[j].size;
           succ_state[j] = tr_state; // copy tr_state to succ_state to edit
+          succ_state[j].num_tr[i].routed_edges_current.clear();
+          size_t m = succ_state[j].num_tr[i].routed_edges.size();
 
           for (size_t k = 0; k < l; ++k) { // looking at every possible path: for each Kantenindex:0-(l-1). k=edgeindex
-            succ_state[j].num_tr[i].routed_edges[k] = network.get_edge(k); //store the edge travelling to succ_state
+            if (m + l > succ_state[j].num_tr[i].routed_edges.capacity()) {
+              succ_state[j].num_tr[i].routed_edges.resize(m + l);
+            }
+            succ_state[j].num_tr[i].routed_edges[m + k] = network.get_edge(k); // store the edge travelling
+            succ_state[j].num_tr[i].routed_edges_current[k] = network.get_edge(k); // store the edge travelling current to succ_state
 
             if (tr_list.get_train(i).max_speed <= network.get_edge(k).max_speed) {
               // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
@@ -299,12 +307,18 @@ namespace cda_rail::solver::astar_based {
 
 
     // used in pot_collision_check
-    bool collision_vss_check(const TrainState& tr_state, const TrainList& tr_list, int tr1_nr, int tr2_nr) {
+    bool collision_vss_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network, int tr1_nr, int tr2_nr) {
       // used in pot_collision_check
       // when two trains are in the same TDD, then it has to be checked if they collide
       // TrainList is defined in train.hpp line 33
       /* TODO: EXPLANATION. this fkt is called ONLY when theyre in the same edge (dh going to same direction)
        * so, no need to refer on other direction calculation! */
+
+      /*if (tr_state.num_tr[tr1_nr].current_pos < tr_list.get_train(tr1_nr).length) {
+        int n = tr_state.num_tr[tr1_nr].routed_edges_current.size();
+
+      }*/
+
 
       double tr1_length = tr_list.get_train(tr1_nr).length; // length tr1
       double tr1_start = tr_state.num_tr[tr1_nr].current_pos; // start
@@ -337,7 +351,7 @@ namespace cda_rail::solver::astar_based {
             return true; // two trains cannot be in unbreakable section. not valid successor. (break)
           else if (tr_state.num_tr[j].current_edge == tr_state.num_tr[i].current_edge) {
             // theyre in the same edge (same direction)
-            if (collision_vss_check(tr_state, tr_list, i, j) == 1) { // if collision happening
+            if (collision_vss_check(tr_state, tr_list, network, i, j) == 1) { // if collision happening
               return true; // collision detected. not valid successor. (break)
             }
             else {
