@@ -39,11 +39,12 @@ namespace cda_rail::solver::astar_based {
      * Mitte der Züge OR Mitte der Strecke(möglichst): some research!
      * */
 
-    // priority queue for managing TrainState objects
-    std::priority_queue<std::pair<double, size_t>,
-                        std::vector<std::pair<double, size_t>>, std::greater<>> pq;
+    // priority queue. "double" for "double cost"
+    std::priority_queue<std::pair<double, TrainState>,
+                        std::vector<std::pair<double, TrainState>>, std::greater<>> pq;
 
     std::vector<std::vector<size_t>> prev_states;
+
 
     struct Properties { //function of all the properties needed for tr_state etc
       // Train train; // train properties defined in train.hpp
@@ -71,7 +72,7 @@ namespace cda_rail::solver::astar_based {
       double cost;
 
       // Constructor
-      TrainState(size_t n): num_tr(n), t(0), counter(0), { // constructor. TODO: state update time can be changed here!!!
+      TrainState(size_t n): num_tr(n), t(0), counter(0), { // constructor.
       }
 
     };
@@ -79,7 +80,6 @@ namespace cda_rail::solver::astar_based {
 
     // initial state
     TrainState initial_state(TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance) {
-      tr_state.cost = 0;
 
       for (size_t i = 0; i < tr_list.size(); ++i) {
         const Schedule tr_schedule = instance.get_schedule(i);
@@ -96,9 +96,13 @@ namespace cda_rail::solver::astar_based {
         tr_state.num_tr[i].current_edge = tr_state.num_tr[i].entry_edge; // current edge
         tr_state.num_tr[i].exit_edge = network.in_edges(tr_state.num_tr[i].exit_vertex); // exit edge
 
-        // TODO: evtl add speed at t=0?
-        // TODO: prev status
+
       }
+
+      tr_state.cost = heuristic(tr_state, tr_list, network);
+
+      TrainState init_state = tr_state;
+      prev_states[0][0] = init_state; // add initial state to prev_states[t=0][idx=0]
       return tr_state;
     }
 
@@ -241,8 +245,6 @@ namespace cda_rail::solver::astar_based {
     }*/
 
 
-
-
     // TODO:BETTER SUCCESSOR
 
     std::vector<TrainState> successors(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
@@ -341,6 +343,14 @@ namespace cda_rail::solver::astar_based {
 
 
     // potential collision check function - checks if multiple trains exist in a TDD
+    /* check if they collide: if any tr goes through Gegenrichtungskante
+     * 1.If any two trs have passed during the state: collision bc tr_length=all travelled strecke
+     * 2.If any are in same edge:needs to be checked.
+     * ***In that case: Either current_pos from prev_state OR current_pos should be considered***
+     * Bc inbetween edges are all belegt!!!
+     * 1.idea?
+     * 2.tr_state.num_tr[tr1_nr].routed_edges_current[0], tr_state.num_tr[tr1_nr].current_pos
+     * */
     bool pot_collision_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // if for any two trains, position further search if edge is the same
         // ->first, edge check then position.
@@ -412,69 +422,96 @@ namespace cda_rail::solver::astar_based {
 
   public:
     // Constructors. TODO: Implement
-    explicit AStarVSSPerformanceOptimizationSolver(
-        const instances::GeneralPerformanceOptimizationInstance& instance)
-        : GeneralSolver(instance) {
-          num_t = instance.get_num_t();
-          num_tr = instance.get_num_tr();
-          num_edges = instance.get_num_edges();
-          num_vertices = instance.get_num_vertices();
+    explicit AStarVSSPerformanceOptimizationSolver(const instances::GeneralPerformanceOptimizationInstance& instance): GeneralSolver(instance) {
+
+      /*
+      num_t = instance.get_num_t();
+      num_tr = instance.get_num_tr();
+      num_edges = instance.get_num_edges();
+      num_vertices = instance.get_num_vertices();
 
 
-          const auto tr_list = instance.get_train_list();
-          const auto numtr = tr_list.size();
-          for (size_t i = 0; i < numtr; i++) {
-            const auto tr = tr_list.get_train(i);
-            const auto trl = tr.length;
+      const auto tr_list = instance.get_train_list();
+      const auto numtr = tr_list.size();
+      for (size_t i = 0; i < numtr; i++) {
+        const auto tr = tr_list.get_train(i);
+        const auto trl = tr.length;
 
-            const Schedule trs = instance.get_schedule(i);
-            const auto entry_vertex = trs.get_entry();
-            const auto t_0 = trs.get_t_0(); // Zeit wenn Zug i bei entry_vertex auftaucht
-            const auto v_0 = trs.get_v_0();
+        const Schedule trs = instance.get_schedule(i);
+        const auto entry_vertex = trs.get_entry();
+        const auto t_0 = trs.get_t_0(); // Zeit wenn Zug i bei entry_vertex auftaucht
+        const auto v_0 = trs.get_v_0();
 
-            const auto exit_vertex = trs.get_exit(); // Zielknoten, wo der Zug möglichst schnell ankommen will
+        const auto exit_vertex = trs.get_exit(); // Zielknoten, wo der Zug möglichst schnell ankommen will
 
-            const Network network = instance.const_n();
-            const auto v0 = network.get_edge(0).source;
-            const auto v1 = network.get_edge(0).target;
-            // Edge 0 = v0 -> v1
+        const Network network = instance.const_n();
+        const auto v0 = network.get_edge(0).source;
+        const auto v1 = network.get_edge(0).target;
+        // Edge 0 = v0 -> v1
 
-            network.get_edge(0).length;
+        network.get_edge(0).length;
 
-            const auto er = instance.const_n().get_reverse_edge_index(0);
-            if (er.has_value()) {
-              //er.value() ist index von v1 -> v0
-            } else {
-              // v1 -> v0 existiert nicht
-            }
-
-            // Zwei Importvarianten
-            // SimpleStation ist sehr überschaubar
-            // -------------------------------
-            //      \--------------/
-            const auto instance_imported_vss = cda_rail::instances::VSSGenerationTimetable("path_to_example-network");
-
-
-            // Etwas ganz zum Schluss
-            bool tr_has_route = instance.has_route(tr.name); // true wenn die Kanten, die tr nutzt bereits festgelegt sind
-            // Aber, die sollten ignoriert werden
-            const auto tr_route = instance.get_route(tr.name);
-
-            // Wichtiger am Ende in der Lösung. Im Lösungsobjekt:
-            // sol.reset_routes();
-            // Für jeden Zug: .add_empty_route(...) und .push_back_edge_to_route(...)
-
-          }
+        const auto er = instance.const_n().get_reverse_edge_index(0);
+        if (er.has_value()) {
+          //er.value() ist index von v1 -> v0
+        } else {
+          // v1 -> v0 existiert nicht
         }
-    explicit AStarVSSPerformanceOptimizationSolver(
-        const std::filesystem::path& p)
-        : GeneralSolver(p) {
-          //
-        }
+
+        // Zwei Importvarianten
+        // SimpleStation ist sehr überschaubar
+        // -------------------------------
+        //      \--------------/
+        const auto instance_imported_vss = cda_rail::instances::VSSGenerationTimetable("path_to_example-network");
+
+
+        // Etwas ganz zum Schluss
+        bool tr_has_route = instance.has_route(tr.name); // true wenn die Kanten, die tr nutzt bereits festgelegt sind
+        // Aber, die sollten ignoriert werden
+        const auto tr_route = instance.get_route(tr.name);
+
+        // Wichtiger am Ende in der Lösung. Im Lösungsobjekt:
+        // sol.reset_routes();
+        // Für jeden Zug: .add_empty_route(...) und .push_back_edge_to_route(...)
+
+      }*/
+    }
+    explicit AStarVSSPerformanceOptimizationSolver(const std::filesystem::path& p): GeneralSolver(p) {
+      //
+    }
     explicit AStarVSSPerformanceOptimizationSolver(const std::string& path);
     explicit AStarVSSPerformanceOptimizationSolver(const char* path);
 
     // TODO: Implement missing functions
+    bool solve(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance) {
+      double initial_cost = prev_states[0][0].cost;
+      pq.emplace(initial_cost, 0);  // TODO: (cost,(t,idx))?
+      initial_state(tr_state,tr_list,network,instance);
+
+      // Main loop
+      while (!pq.empty()) {
+        auto [time, index] = pq.top(); // TODO: Copied from .cpp: work on variables
+        pq.pop();
+
+        TrainState current_state = prev_states[time][index];
+
+        if (goal_state(current_state, tr_list, network)) {
+          return true; // goal reached. TODO: evtl return the trainstate itself?
+        }
+
+        if (update_state(current_state, tr_list, network)) {
+          // theres 1+ successor. TODO: save the new state to pq
+        } // do pq for next step
+
+        if (!update_state(current_state, tr_list, network)) {
+          // theres no successor from that state. TODO: pq goes 1 step back. Delete this state!
+        }
+
+      }
+      return false;
+    }
+
+
 
     using GeneralSolver::solve;
     [[nodiscard]] instances::SolGeneralPerformanceOptimizationInstance<
@@ -482,3 +519,8 @@ namespace cda_rail::solver::astar_based {
     solve(int time_limit, bool debug_input) override;
   };
 } // namespace cda_rail::solver::astar_based
+
+
+
+
+
