@@ -39,9 +39,10 @@ namespace cda_rail::solver::astar_based {
      * Mitte der Züge OR Mitte der Strecke(möglichst): some research!
      * */
 
+
+
     // priority queue. "double" for "double cost"
-    std::priority_queue<std::pair<double, TrainState>,
-                        std::vector<std::pair<double, TrainState>>, std::greater<>> pq;
+    std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>, std::greater<>> pq;
 
     std::vector<std::vector<size_t>> prev_states;
 
@@ -128,7 +129,7 @@ namespace cda_rail::solver::astar_based {
     bool update_state(TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       // 1.find successors 2.check collision,vss 3.check cost
       tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
-      tr_state.t += tr_state.delta_t;
+      tr_state.t += tr_state.delta_t; // TODO: IS IT HERE? NOT AFTER EXAMINED?
 
       std::vector<TrainState> next_states = successors(tr_state, tr_list, network); // set of next states
       std::vector<TrainState> next_states_valid; // list of valid next states
@@ -140,13 +141,12 @@ namespace cda_rail::solver::astar_based {
         }
       }
 
-      prev_states[tr_state.t] = next_states_valid; // copy the valid states to prev_states[t]
       if (!next_states_valid.empty()) {
         if (prev_states.size() <= tr_state.t / tr_state.delta_t) { // Bsp 15s with 0,5,10,15: size()<=3:add
           prev_states.resize(tr_state.t / tr_state.delta_t + 1); // Resize prev_states
         }
-        if (prev_states[tr_states.t].size() < next_states_valid.size()) { // if less size than next states valid
-          prev_states[tr_states.t].resize(next_states_valid.size() + 1); // Resize prev_states
+        if (prev_states[tr_state.t].size() < next_states_valid.size()) { // if less size than next states valid
+          prev_states[tr_state.t].resize(next_states_valid.size() + 1); // Resize prev_states
         }
         prev_states[tr_state.t] = next_states_valid; // copy the valid states to prev_states[t]
         return true;
@@ -375,6 +375,8 @@ namespace cda_rail::solver::astar_based {
     }
 
     // insert VSS
+    // TODO: save edges with index: {(100,150),(200),(),(),(200),...}: [0] has vss at 100&150,...
+    // -> collision check fkts needs to be changed too!
     bool insert_new_vss(TrainState& tr_state, const TrainList& tr_list, const Network& network, int i, int j) {
       // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
       double middle_point = network.get_edge(tr_state.num_tr[i].current_edge).length / 2;
@@ -484,16 +486,19 @@ namespace cda_rail::solver::astar_based {
 
     // TODO: Implement missing functions
     bool solve(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance) {
-      double initial_cost = prev_states[0][0].cost;
-      pq.emplace(initial_cost, 0);  // TODO: (cost,(t,idx))?
-      initial_state(tr_state,tr_list,network,instance);
+      TrainState initial_state = initial_state(tr_state, tr_list, network, instance);
+      // double initial_cost = initial_state.cost; // prev_states[0][0].cost;
+      pq.emplace(initial_state.cost, {0.0, 0});  // TODO: (cost,(t,idx))?
 
       // Main loop
       while (!pq.empty()) {
-        auto [time, index] = pq.top(); // TODO: Copied from .cpp: work on variables
+        auto [current_cost, {indices}] = pq.top(); // TODO: Copied from .cpp: work on variables
         pq.pop();
 
-        TrainState current_state = prev_states[time][index];
+        double time = indices.first;
+        size_t index = indices.second;
+
+        TrainState current_state = prev_states[time][index]; // the state which its successor will be examined
 
         if (goal_state(current_state, tr_list, network)) {
           return true; // goal reached. TODO: evtl return the trainstate itself?
@@ -501,14 +506,18 @@ namespace cda_rail::solver::astar_based {
 
         if (update_state(current_state, tr_list, network)) {
           // theres 1+ successor. TODO: save the new state to pq
+          for (size_t i = 0; i < prev_states[current_state.t].size(); ++i) {
+            pq.emplace(prev_states[current_state.t][i].cost,
+                       {current_state.t + current_state.delta_t, i}); // push the new prev_states to pq
+          }
         } // do pq for next step
 
-        if (!update_state(current_state, tr_list, network)) {
-          // theres no successor from that state. TODO: pq goes 1 step back. Delete this state!
+        else {
+          // theres no successor from that state. Delete this state
+          prev_states[time][index].clear();
         }
-
       }
-      return false;
+      return false; // return false when no pq and it does not reach goal
     }
 
 
