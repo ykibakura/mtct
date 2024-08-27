@@ -257,118 +257,73 @@ namespace cda_rail::solver::astar_based {
 
 
     // used in pot_collision_check
-    bool collision_vss_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network, int tr1_nr, int tr2_nr, int edge_idx) {
+    // collision (0), vss is möglich (1), or it is already separated by the vss existed (2).
+    int collision_vss_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network, int tr1, int tr2, int edge_idx) {
       // used in pot_collision_check
       // when two trains are in the same TDD, then it has to be checked if they collide
       // TrainList is defined in train.hpp line 33
       /* TODO: EXPLANATION. this fkt is called ONLY when theyre in the same edge (dh going to same direction)
        * so, no need to refer on other direction calculation! */
 
-      /*if (tr_state.num_tr[tr1_nr].current_pos < tr_list.get_train(tr1_nr).length) {
-        int n = tr_state.num_tr[tr1_nr].routed_edges_current.size();
+      /*if (tr_state.num_tr[tr1].current_pos < tr_list.get_train(tr1).length) {
+        int n = tr_state.num_tr[tr1].routed_edges_current.size();
 
       }*/
-      int tr1_nth_path = std::find(tr_state.num_tr[tr1_nr].routed_edges_current.begin(), tr_state.num_tr[tr1_nr].routed_edges_current.end(), edge_idx);
-      int tr2_nth_path = std::find(tr_state.num_tr[tr2_nr].routed_edges_current.begin(), tr_state.num_tr[tr2_nr].routed_edges_current.end(), edge_idx);
-      if (tr_state.num_tr[tr1_nr].routed_edges_current.size() == 1 && tr_state.num_tr[tr2_nr].routed_edges_current.size() == 1) {
-        // no startend
-        if (tr1_nth_path == tr2_nth_path) // startstart or endend
-          return true;
-      }
-      if (tr_state.num_tr[tr1_nr].routed_edges_current.end() != 0 || tr_state.num_tr[tr1_nr].routed_edges_current.end() != 0) {
-        // except startend, startend in a edge TODO: Check this line!!!!!
-        if (tr_state.num_tr[tr1_nr].routed_edges_current.end() != 0)
-        if (edge_idx != tr_state.num_tr[tr1_nr].current_edge) {
-          // tr1=stst
-        }
-        else if (edge_idx != tr_state.num_tr[tr2_nr].prev_edge) {
-          // tr2=enend
+      // .size()=1:startend. nth_path=.begin():start neth_path=end():end
+      int tr1_nth_path = std::find(tr_state.num_tr[tr1].routed_edges_current.begin(), tr_state.num_tr[tr1].routed_edges_current.end(), edge_idx);
+      int tr2_nth_path = std::find(tr_state.num_tr[tr2].routed_edges_current.begin(), tr_state.num_tr[tr2].routed_edges_current.end(), edge_idx);
+      // trX_nth_path: edge is n-th: needs to be either 0 OR .size()
+
+      if (tr_state.num_tr[tr1].routed_edges_current.size() == 1 && tr_state.num_tr[tr2].routed_edges_current.size() == 1) {
+        // for except startend;
+        if ((tr1_nth_path == tr2_nth_path == 0) || (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.end() && tr2_nth_path == tr_state.num_tr[tr2].routed_edges_current.end())) {
+          // startstart or endend
+          return 0; // collision
         }
       }
 
+      if (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.begin() && tr2_nth_path != tr_state.num_tr[tr2].routed_edges_current.begin()) {
+        // tr1 and tr2 both starts from this edge_idx: bedingung für 2. (stend-stst & stend-stend combi)
 
-
-
-
-      if (tr1_nth_path != 0 || tr2_nth_path != 0) {
-        if (tr1_nth_path == 0) {
-          double front_end = tr_state.num_tr[tr1_nr].prev_pos - tr_list.get_train(tr1_nr).length;
-          double back_start = tr_state.num_tr[tr2_nr].current_pos;
+        if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.end()) {
+          // combi stend-stst with tr1 stst: tr1 vorn
+          return two_tr_pos_check(tr_state, tr_list, tr1, tr2, edge_idx);
         }
-        else { //tr2_nth_path=0
-          double front_end = tr_state.num_tr[tr2_nr].prev_pos - tr_list.get_train(tr2_nr).length;
-          double back_start = tr_state.num_tr[tr1_nr].current_pos;
+        else if (tr2_nth_path != tr_state.num_tr[tr2].routed_edges_current.end()) {
+          // combi stend-stst with tr2 stst: tr2 vorn
+          return two_tr_pos_check(tr_state, tr_list, tr2, tr1, edge_idx);
         }
-        if (front_end <= back_start) {
-          return true; // collision
+        else { // both stend
+          if (tr_state.num_tr[tr1].current_pos > tr_state.num_tr[tr1].current_pos) { // tr1 vorne
+            return two_tr_pos_check(tr_state, tr_list, tr1, tr2, edge_idx);
+          }
+          else if (tr_state.num_tr[tr1].current_pos < tr_state.num_tr[tr1].current_pos) { // tr2 vorne
+            return two_tr_pos_check(tr_state, tr_list, tr2, tr1, edge_idx);
+          }
+          else { // tr1.current_pos = tr2.current_pos
+            return 0; // collision
+          }
         }
       }
-      else {
-        if (tr1_nth_path == tr2_nth_path = 0) { // both tr starting & ending on edge_idx
-          if (tr_state.edge_vss[edge_idx] == 0) { // vss should be implemented on prev state as theyre in same edge
-            return true; // TODO: evtl give error? that prev_state not working
-          }
-          else if (tr_state.num_tr[tr1_nr].current_pos == tr_state.num_tr[tr2_nr].current_pos) {
-            return true;
-          }
-          else if (tr_state.num_tr[tr1_nr].current_pos > tr_state.num_tr[tr2_nr].current_pos) { // tr1 vorne, tr2 hinten
-            double front_end = tr_state.num_tr[tr1_nr].prev_pos - tr_list.get_train(tr1_nr).length;
-            double back_start = tr_state.num_tr[tr2_nr].current_pos;
-            for (int i = 0; i < tr_state.edge_vss[edge_idx]; ++i) { // go through every vss on edge_idx
-              if (back_start <= tr_state.edge_vss[i]) {
-                if (front_end > tr_state.edge_vss[i]) {
-                  // VSS needed
-                }
-                // else // nothing. already separated by vss exists
-                // TODO: clean it
-                break;
-              }
-            }
-          }
-          else if (tr_state.num_tr[tr1_nr].current_pos < tr_state.num_tr[tr2_nr].current_pos) { // tr1 vorne, tr2 hinten
-            double front_end = tr_state.num_tr[tr1_nr].prev_pos - tr_list.get_train(tr1_nr).length;
-            double back_start = tr_state.num_tr[tr2_nr].current_pos;
-            for (int i = 0; i < tr_state.edge_vss[edge_idx]; ++i) { // go through every vss on edge_idx
-              if (back_start <= tr_state.edge_vss[i]) {
-                if (front_end > tr_state.edge_vss[i]) {
-                  // VSS needed
-                }
-                // else // nothing. already separated by vss exists
-                // TODO: clean it
-                break;
-              }
-            }
-          }
+      else { // theres at least 1 enend. bedingung für 1. (stst-enend & stend-enend combi)
+        if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.begin()) { // tr1 enend, tr2 vorne
+          return two_tr_pos_check(tr_state, tr_list, tr2, tr1, edge_idx);
         }
-
-
-        else { //tr2_nth_path=0
-          double front_end = tr_state.num_tr[tr2_nr].prev_pos - tr_list.get_train(tr2_nr).length;
-          double back_start = tr_state.num_tr[tr1_nr].current_pos;
-        }
-
-
-
-        if (tr1_nth_path == tr_state.num_tr[tr1_nr].routed_edges_current.end()) {
-
-        if (front_end <= back_start) {
-          return false; // collision
+        else { // tr2 enend, tr1 vorne
+          return two_tr_pos_check(tr_state, tr_list, tr1, tr2, edge_idx);
         }
       }
-      m == 0 && m == tr_state.num_tr[k].routed_edges_current.size()
+
       /* m:start&start OR end&end: return true
        * start&end & (stst OR enend)-> positionsvergleich. stst should be vorne. enend should be hinten.
        * stst & enend (enend&stst)-> positionsvergleich. stst should be vorne & enend should be hinten
        * stend & stend->
 
-
-      double tr1_length = tr_list.get_train(tr1_nr).length; // length tr1
-      double tr1_start = tr_state.num_tr[tr1_nr].current_pos; // start
+      double tr1_length = tr_list.get_train(tr1).length; // length tr1
+      double tr1_start = tr_state.num_tr[tr1].current_pos; // start
       double tr1_end = tr1_start + tr1_length; // end: ATTENTION: FOR IMPLEMENTATION ADD DISTANCE TRAVELED!
-      // TODO: work:add distance traveled, check if + is correct->Anmerkung:only one edge is displayed!what if train goes more edges
-
-      double tr2_length = tr_list.get_train(tr2_nr).length;
-      double tr2_start = tr_state.num_tr[tr2_nr].current_pos;
+      double tr2_length = tr_list.get_train(tr2).length;
+      double tr2_start = tr_state.num_tr[tr2].current_pos;
       double tr2_end = tr2_start + tr2_length;
 
       // VERGLEICHE DIE tr1_length & tr2_length:
@@ -377,10 +332,38 @@ namespace cda_rail::solver::astar_based {
           (tr1_start > tr2_end && tr1_end < tr2_start)) {
         // always compare tr1_start,tr2_end && tr1_end,tr2_start. depends on the positive direction: <>either way
         return true; // collision. if false: VSS can solve the problem
-      }
-      return false;
+      }*/
     }
 
+    // checks if there is a collision (0), vss is möglich (1), or it is already separated by the vss existed (2).
+    // used in collision_vss_check
+    int two_tr_pos_check(const TrainState& tr_state, const TrainList& tr_list, int tr1, int tr2, int edge_idx) {
+      // tr1 vorne, tr2 hinten
+      double front_end = tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length;
+      double back_start = tr_state.num_tr[tr2].current_pos;
+
+      if (tr_state.edge_vss[edge_idx].size() == 0) { // no vss implemented on edge_idx. Bedingung 1.
+        if (front_end <= back_start) {
+          return 0; // collision
+        }
+        else {
+          return 1; // new VSS
+        }
+      }
+      else { // theres 1+ vss.
+        for (int i = 0; i < tr_state.edge_vss[edge_idx].size(); ++i) { // go through every vss on edge_idx
+          if (back_start <= tr_state.edge_vss[edge_idx][i]) { // check which VSS section is back_start at
+            if (front_end <= tr_state.edge_vss[edge_idx][i]) { // theyre in the same VSS section
+              return 1; // new VSS
+            }
+            else {
+              return 2; // already separated by vss exists. No collision, No VSS needed
+            }
+          }
+        }
+        return 0; // back_start is at the last vss section of the edge. collision
+      }
+    }
 
     // potential collision check function - checks if multiple trains exist in a TDD
     /* check if they collide: if any tr goes through Gegenrichtungskante
@@ -389,104 +372,133 @@ namespace cda_rail::solver::astar_based {
      * ***In that case: Either current_pos from prev_state OR current_pos should be considered***
      * Bc inbetween edges are all belegt!!!
      * 1.idea?
-     * 2.tr_state.num_tr[tr1_nr].routed_edges_current[0], tr_state.num_tr[tr1_nr].current_pos
+     * 2.tr_state.num_tr[tr1].routed_edges_current[0], tr_state.num_tr[tr1].current_pos
      * */
     bool pot_collision_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
       for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // if for any two trains, position further search if edge is the same
         // ->first, edge check then position.
         for (size_t j = i+1; j < tr_state.num_tr.size(); ++j) {
           // i,j: two trains' index
-          if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].current_edge, tr_state.num_tr[j].current_edge) == 1 || tr_state.num_tr[i].current_edge == network.get_reverse_edge_index(tr_state.num_tr[j].current_edge))
+          if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].current_edge, tr_state.num_tr[j].current_edge) == 1 || tr_state.num_tr[i].current_edge == network.get_reverse_edge_index(tr_state.num_tr[j].current_edge)) {
             // theyre in an unbreakable section OR theyre in the same section going other way
             return true; // two trains cannot be in unbreakable section. not valid successor. (break)
-          else if (tr_state.num_tr[j].current_edge == tr_state.num_tr[i].current_edge) {
-            // theyre in the same edge (same direction)
-            // TODO: whole the Laufweg needs to be checked!
-            if (collision_vss_check(tr_state, tr_list, network, i, j) == 1) { // if collision happening
-              return true; // collision detected. not valid successor. (break)
-            }
-            else {
-              insert_new_vss(tr_state, tr_list, network, i, j, edge_idx); // TDD section
-              // TODO: vss added needs to be marked somewhere?
-            }
           }
-          else {
-            for (size_t k = 0; k < tr_state.num_tr.size(); ++k) {
-              for (size_t l = k+1; l < tr_state.num_tr.size(); ++l) {
-                for (size_t m = 0; l < tr_state.num_tr[k].routed_edges_current.size(); ++m){
-                  for (size_t n = 0; n < tr_state.num_tr[l].routed_edges_current.size(); ++n) {
-                    if (tr_state.num_tr[k].routed_edges_current[m] == tr_state.num_tr[l].routed_edges_current[n]) { // same edge index found
-                      if ((m != 0 && m != tr_state.num_tr[k].routed_edges_current.size()) || (n != 0 && n != tr_state.num_tr[l].routed_edges_current.size())) {
-                        // m and n are not start or end edge
-                        return true; // not valid successor
-                      }
-                      else {
-                        size_t common_edge = tr_state.num_tr[k].routed_edges_current[m];
-                        if (collision_vss_check(tr_state, tr_list, network, i, j, common_edge) == 1) { // if collision happening
-                          return true; // collision detected. not valid successor. (break)
-                        }
-                        else {
-                          insert_new_vss(tr_state, tr_list, network, i, j, common_edge); // TDD section
-                        }
-
-                      }
-
+          else { // theyre not in unbreakable edge
+            for (size_t k = 0; l < tr_state.num_tr[i].routed_edges_current.size(); ++k){ // going for every edge in a path
+              for (size_t l = 0; n < tr_state.num_tr[j].routed_edges_current.size(); ++l) {
+                if (tr_state.num_tr[i].routed_edges_current[k] == tr_state.num_tr[j].routed_edges_current[l]) {
+                  // if same edge index found; d.h. if they go through the same edge
+                  if ((k != 0 && k != tr_state.num_tr[i].routed_edges_current.size()) || (l != 0 && l != tr_state.num_tr[j].routed_edges_current.size())) {
+                    // m and n are not start or end edge
+                    return true; // not valid successor
+                  }
+                  else {
+                    size_t common_edge = tr_state.num_tr[i].routed_edges_current[k];
+                    if (collision_vss_check(tr_state, tr_list, network, i, j, common_edge) == 0) { // if collision happening
+                      return true; // collision detected. not valid successor
+                    }
+                    else if (collision_vss_check(tr_state, tr_list, network, i, j) == 1) {
+                      insert_new_vss(tr_state, tr_list, network, i, j, common_edge); // TDD section
                     }
                   }
                 }
               }
             }
-
-
           }
         }
       }
-      return false; //When no collision(potential VSS):return false
+      return false; // When no collision: add VSS is needed, then return false
     }
 
     // insert VSS
-    // TODO: save edges with index: {(100,150),(200),(),(),(200),...}: [0] has vss at 100&150,...
+    // save edges with index: {(100,150),(200),(),(),(200),...}: [0] has vss at 100&150,...
     // -> collision check fkts needs to be changed too!
     bool insert_new_vss(TrainState& tr_state, const TrainList& tr_list, const Network& network, int i, int j, int edge_idx) {
       // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
-      double middle_point = network.get_edge(edge_idx).length / 2;
-      if (tr_state.num_tr[i].current_pos + tr_list.get_train(i).length > tr_state.num_tr[j].current_pos) {
-        // if i vorne, j hinten
-        if (tr_state.num_tr[i].current_pos + tr_list.get_train(i).length > middle_point && tr_state.num_tr[j].current_pos < middle_point) {
-          // if the middle point is between the trains
-          // tr_state.edge_vss[tr_state.num_tr[j].current_edge].push_back(middle_point); // add VSS in the middle: Bsp vss_point=middle_point
-          tr_state.edge_vss[edge_idx].push_back(middle_point);
-        }
-        else if (tr_state.num_tr[i].current_pos + tr_list.get_train(i).length > middle_point) {
-          // two trains are past middle point
-          tr_state.edge_vss[edge_idx].push_back(tr_state.num_tr[j].current_pos); // add VSS by the second train
-        }
-        else {
-          // two trains are before middle point
-          tr_state.edge_vss[edge_idx].push_back(tr_state.num_tr[i].current_pos + tr_list.get_train(i).length); // add VSS by the first train
-        }
+      // by stst: current_edge!=edge_idx. Then use prev_pos
+      if (edge_idx != tr_state.num_tr[i].current_edge) {
+        new_vss_middle_of_edge(tr_state, tr_list, network, i, tr_state.num_tr[i].prev_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
       }
-      else {
-        // j vorne, i hinten
-        if (tr_state.num_tr[j].current_pos + tr_list.get_train(j).length > middle_point && tr_state.num_tr[i].current_pos < middle_point) {
-          // if the middle point is between the trains
-          tr_state.edge_vss[edge_idx].push_back(middle_point); // add VSS in the middle: Bsp vss_point=middle_point
-        }
-        else if (tr_state.num_tr[j].current_pos + tr_list.get_train(j).length > middle_point) {
-          // two trains are past middle point
-          tr_state.edge_vss[edge_idx].push_back(tr_state.num_tr[i].current_pos); // add VSS by the second train
-        }
-        else {
-          // two trains are before middle point
-          tr_state.edge_vss[edge_idx].push_back(tr_state.num_tr[j].current_pos + tr_list.get_train(j).length); // add VSS by the first train
-        }
+      else if (edge_idx != tr_state.num_tr[j].current_edge) {
+        new_vss_middle_of_edge(tr_state, tr_list, network, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].prev_pos, edge_idx);
       }
-      std::sort(tr_state.edge_vss[edge_idx].begin, tr_state.edge_vss[edge_idx].end());
-      // sort the new added vss
-
+      else { // if both are ending in this edge; d.h. both's current_edge (stend,enend)
+        new_vss_middle_of_edge(tr_state, tr_list, network, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
+      }
+      std::sort(tr_state.edge_vss[edge_idx].begin, tr_state.edge_vss[edge_idx].end()); // sort the new added vss
       return true;
     }
 
+    // used in insert_new_vss
+    // implement the new VSS
+    bool new_vss_middle_of_edge(TrainState& tr_state, const TrainList& tr_list, const Network& network, int tr1, double tr1_pos, int tr2, double tr2_pos, int edge_idx) {
+      if (tr_state.edge_vss[edge_idx].size() == 0) { // no VSS implemented in the edge yet
+        double middle_point = network.get_edge(edge_idx).length / 2;
+        if (tr1_pos + tr_list.get_train(tr1).length > tr2_pos) {
+          // if tr1 vorne, tr2 hinten
+          if (tr1_pos + tr_list.get_train(tr1).length > middle_point && tr2_pos < middle_point) {
+            // if the middle point is between the trains
+            tr_state.edge_vss[edge_idx].push_back(middle_point);
+          }
+          else if (tr1_pos + tr_list.get_train(tr1).length > middle_point) {
+            // two trains are past middle point
+            tr_state.edge_vss[edge_idx].push_back(tr2_pos); // add VSS by the second train
+          }
+          else { // two trains are before middle point
+            tr_state.edge_vss[edge_idx].push_back(tr1_pos + tr_list.get_train(tr1).length); // add VSS by the first train
+          }
+        }
+        else {
+          if (tr2_pos + tr_list.get_train(tr2).length > middle_point && tr1_pos < middle_point) {
+            // if the middle point is between the trains
+            tr_state.edge_vss[edge_idx].push_back(middle_point);
+          }
+          else if (tr2_pos + tr_list.get_train(tr2).length > middle_point) {
+            // two trains are past middle point
+            tr_state.edge_vss[edge_idx].push_back(tr1_pos); // add VSS by the second train
+          }
+          else { // two trains are before middle point
+            tr_state.edge_vss[edge_idx].push_back(tr2_pos + tr_list.get_train(tr2).length); // add VSS by the first train
+          }
+        }
+      }
+
+      else { // exists 1+ VSS in the edge
+        for (int i = 0; i < tr_state.edge_vss[edge_idx].size(); ++i) { // go through every vss on edge_idx
+          if (back_start <= tr_state.edge_vss[edge_idx][i]) { // check which VSS section is back_start at
+            double middle_section = (tr_state.edge_vss[edge_idx][i-1] + tr_state.edge_vss[edge_idx][i]) / 2;
+            if (tr1_pos + tr_list.get_train(tr1).length > tr2_pos) {
+              // if tr1 vorne, tr2 hinten
+              if (tr1_pos + tr_list.get_train(tr1).length > middle_section && tr2_pos < middle_section) {
+                // if the middle point is between the trains
+                tr_state.edge_vss[edge_idx].push_back(middle_section);
+              }
+              else if (tr1_pos + tr_list.get_train(tr1).length > middle_section) {
+                // two trains are past middle point
+                tr_state.edge_vss[edge_idx].push_back(tr2_pos); // add VSS by the second train
+              }
+              else { // two trains are before middle point
+                tr_state.edge_vss[edge_idx].push_back(tr1_pos + tr_list.get_train(tr1).length); // add VSS by the first train
+              }
+            }
+            else {
+              if (tr2_pos + tr_list.get_train(tr2).length > middle_section && tr1_pos < middle_section) {
+                // if the middle point is between the trains
+                tr_state.edge_vss[edge_idx].push_back(middle_section);
+              }
+              else if (tr2_pos + tr_list.get_train(tr2).length > middle_section) {
+                // two trains are past middle point
+                tr_state.edge_vss[edge_idx].push_back(tr1_pos); // add VSS by the second train
+              }
+              else { // two trains are before middle point
+                tr_state.edge_vss[edge_idx].push_back(tr2_pos + tr_list.get_train(tr2).length); // add VSS by the first train
+              }
+            }
+          }
+        }
+      }
+      return true;
+    }
 
 
 
