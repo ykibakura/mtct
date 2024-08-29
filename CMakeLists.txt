@@ -25,7 +25,9 @@ endmacro()
 include(cmake/StandardProjectSettings.cmake)
 if(NOT TARGET project_options)
   # Use the options specified in CompilerOptions.cmake
-  add_library(project_options INTERFACE)
+  add_library(project_options INTERFACE
+          include/solver/a-star-based/test.cpp
+          test/test_astar.cpp)
 
   # Standard compiler options
   include(cmake/CompilerOptions.cmake)
