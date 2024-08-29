@@ -37,17 +37,22 @@ namespace cda_rail::solver::astar_based {
      * VSS: after the edges are broken: do not change edge feature, d.h. has same edge nr.
      * identify them as length.
      * Mitte der Züge OR Mitte der Strecke(möglichst): some research!
+     *
+     * 28.8
+     * const Network& const_network = instance.const_n();
+Network& editable_network = instance.n();
+const TrainList& tr_list = instance.get_train_list(); -> without&: makes a copy, so after editing it and instance.n()
+     doesnt give the edit!
+     *
      * */
 
 
 
     // priority queue. "double" for "double cost"
-    std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>, std::greater<>> pq;
     std::vector<std::vector<size_t>> prev_states;
 
 
     struct Properties { //function of all the properties needed for tr_state etc
-      bool VSS; // VSS info
       std::vector<size_t> routed_edges; // edges travelled
       std::vector<size_t> routed_edges_current; // edges travelled current state
 
@@ -72,16 +77,17 @@ namespace cda_rail::solver::astar_based {
       // Constructor
       TrainState(size_t n): num_tr(n), t(0.0), delta_t(0.0), counter(0), cost(0.0), edge_vss(n) { // constructor.
       }
-
     };
 
 
     // initial state
-    TrainState initial_state(TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance) {
+    TrainState initial_state(TrainState& tr_state) {
+      const Network& network = instance.const_n();
+      const TrainList& tr_list = instance.get_train_list();
+
       for (size_t i = 0; i < tr_list.size(); ++i) {
         const Schedule tr_schedule = instance.get_schedule(i);
         // variables:cost,vss,current_pos,entry/exit_vertex,entry/current/exit_edge
-        tr_state.num_tr[i].VSS = false;
         tr_state.num_tr[i].routed_edges.clear();
 
         tr_state.num_tr[i].current_pos = 0; // starting point is always on vertices
@@ -94,10 +100,9 @@ namespace cda_rail::solver::astar_based {
         tr_state.num_tr[i].current_edge = tr_state.num_tr[i].entry_edge; // current edge
         tr_state.num_tr[i].exit_edge = network.in_edges(tr_state.num_tr[i].exit_vertex); // exit edge
       }
-      tr_state.cost = heuristic(tr_state, tr_list, network);
+      tr_state.cost = heuristic(tr_state);
       tr_state.edge_vss.resize(network.edges.size());
       tr_state.edge_vss.clear();
-
 
       TrainState init_state = tr_state;
       prev_states[0][0] = init_state; // add initial state to prev_states[t=0][idx=0]
@@ -106,7 +111,10 @@ namespace cda_rail::solver::astar_based {
 
 
     // goal state
-    bool goal_state(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    bool goal_state(TrainState& tr_state) {
+      const Network& network = instance.const_n();
+      const TrainList& tr_list = instance.get_train_list();
+
       double exitedge_len;
 
       for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // i: train index
@@ -123,17 +131,20 @@ namespace cda_rail::solver::astar_based {
 
 
     // update_state
-    bool update_state(TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    bool update_state(TrainState& tr_state) {
       // 1.find successors 2.check collision,vss 3.check cost
+      const Network& network = instance.const_n();
+      const TrainList& tr_list = instance.get_train_list();
+
       tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
       tr_state.t += tr_state.delta_t; // TODO: IS IT HERE? NOT AFTER EXAMINED?
 
-      std::vector<TrainState> next_states = successors(tr_state, tr_list, network); // set of next states
+      std::vector<TrainState> next_states = successors(tr_state); // set of next states
       std::vector<TrainState> next_states_valid; // list of valid next states
 
       for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
-        if (pot_collision_check(next_states[i], tr_list, network) == 0) { // no collision
-          next_states[i].cost = cost(next_states[i], tr_list, network);
+        if (pot_collision_check(next_states[i]) == 0) { // no collision
+          next_states[i].cost = cost(next_states[i]);
           next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
         }
       }
@@ -161,7 +172,10 @@ namespace cda_rail::solver::astar_based {
     // d=shortest_path(size_t source_edge_id,size_t target_vertex_id)+distance to next Knoten
     // ACHTUNG:beachte shortest_path von nächstmögliche Knoten?
     // TODO: Heuristic is assuming that all the edges are runned with max_speed.train
-    double heuristic(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    double heuristic(TrainState& tr_state) {
+      const Network& network = instance.const_n();
+      const TrainList& tr_list = instance.get_train_list();
+
       double h = 0; // heuristic wert
       double d = 0; // distance
 
@@ -185,16 +199,19 @@ namespace cda_rail::solver::astar_based {
     // cost function
     // cost is defined as:" the costs are defined by the sum of total travel times"
     // https://www.cda.cit.tum.de/files/eda/2022_rssrail_optimal_railway_routing_using_virtual_subsections.pdf
-    double cost(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    double cost(TrainState& tr_state) {
       double g; // SIGMA(g_index)
       g = tr_state.num_tr.size() * tr_state.t; // Cost till here=no.trains*time
 
-      return g + heuristic(tr_state, tr_list, network); // f=g+h
+      return g + heuristic(tr_state); // f=g+h
     }
 
 
     // successor function
-    std::vector<TrainState> successors(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    std::vector<TrainState> successors(TrainState& tr_state) {
+      const Network& network = instance.const_n();
+      const TrainList& tr_list = instance.get_train_list();
+
       std::vector<TrainState> next_states; // list of next states.
       std::vector<TrainState> succ_state; // copy of tr_state for editing
       // reason to make succ_state is so that when something goes wrong the next_states is returned empty.
@@ -258,17 +275,13 @@ namespace cda_rail::solver::astar_based {
 
     // used in pot_collision_check
     // collision (0), vss is möglich (1), or it is already separated by the vss existed (2).
-    int collision_vss_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network, int tr1, int tr2, int edge_idx) {
+    int collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
       // used in pot_collision_check
       // when two trains are in the same TDD, then it has to be checked if they collide
       // TrainList is defined in train.hpp line 33
       /* TODO: EXPLANATION. this fkt is called ONLY when theyre in the same edge (dh going to same direction)
        * so, no need to refer on other direction calculation! */
 
-      /*if (tr_state.num_tr[tr1].current_pos < tr_list.get_train(tr1).length) {
-        int n = tr_state.num_tr[tr1].routed_edges_current.size();
-
-      }*/
       // .size()=1:startend. nth_path=.begin():start neth_path=end():end
       int tr1_nth_path = std::find(tr_state.num_tr[tr1].routed_edges_current.begin(), tr_state.num_tr[tr1].routed_edges_current.end(), edge_idx);
       int tr2_nth_path = std::find(tr_state.num_tr[tr2].routed_edges_current.begin(), tr_state.num_tr[tr2].routed_edges_current.end(), edge_idx);
@@ -287,18 +300,18 @@ namespace cda_rail::solver::astar_based {
 
         if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.end()) {
           // combi stend-stst with tr1 stst: tr1 vorn
-          return two_tr_pos_check(tr_state, tr_list, tr1, tr2, edge_idx);
+          return two_tr_pos_check(tr_state, tr1, tr2, edge_idx);
         }
         else if (tr2_nth_path != tr_state.num_tr[tr2].routed_edges_current.end()) {
           // combi stend-stst with tr2 stst: tr2 vorn
-          return two_tr_pos_check(tr_state, tr_list, tr2, tr1, edge_idx);
+          return two_tr_pos_check(tr_state, tr2, tr1, edge_idx);
         }
         else { // both stend
           if (tr_state.num_tr[tr1].current_pos > tr_state.num_tr[tr1].current_pos) { // tr1 vorne
-            return two_tr_pos_check(tr_state, tr_list, tr1, tr2, edge_idx);
+            return two_tr_pos_check(tr_state, tr1, tr2, edge_idx);
           }
           else if (tr_state.num_tr[tr1].current_pos < tr_state.num_tr[tr1].current_pos) { // tr2 vorne
-            return two_tr_pos_check(tr_state, tr_list, tr2, tr1, edge_idx);
+            return two_tr_pos_check(tr_state, tr2, tr1, edge_idx);
           }
           else { // tr1.current_pos = tr2.current_pos
             return 0; // collision
@@ -307,10 +320,10 @@ namespace cda_rail::solver::astar_based {
       }
       else { // theres at least 1 enend. bedingung für 1. (stst-enend & stend-enend combi)
         if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.begin()) { // tr1 enend, tr2 vorne
-          return two_tr_pos_check(tr_state, tr_list, tr2, tr1, edge_idx);
+          return two_tr_pos_check(tr_state, tr2, tr1, edge_idx);
         }
         else { // tr2 enend, tr1 vorne
-          return two_tr_pos_check(tr_state, tr_list, tr1, tr2, edge_idx);
+          return two_tr_pos_check(tr_state, tr1, tr2, edge_idx);
         }
       }
 
@@ -337,7 +350,9 @@ namespace cda_rail::solver::astar_based {
 
     // checks if there is a collision (0), vss is möglich (1), or it is already separated by the vss existed (2).
     // used in collision_vss_check
-    int two_tr_pos_check(const TrainState& tr_state, const TrainList& tr_list, int tr1, int tr2, int edge_idx) {
+    int two_tr_pos_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
+      const TrainList& tr_list = instance.get_train_list();
+
       // tr1 vorne, tr2 hinten
       double front_end = tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length;
       double back_start = tr_state.num_tr[tr2].current_pos;
@@ -374,7 +389,9 @@ namespace cda_rail::solver::astar_based {
      * 1.idea?
      * 2.tr_state.num_tr[tr1].routed_edges_current[0], tr_state.num_tr[tr1].current_pos
      * */
-    bool pot_collision_check(const TrainState& tr_state, const TrainList& tr_list, const Network& network) {
+    bool pot_collision_check(TrainState& tr_state) {
+      const Network& network = instance.const_n();
+
       for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // if for any two trains, position further search if edge is the same
         // ->first, edge check then position.
         for (size_t j = i+1; j < tr_state.num_tr.size(); ++j) {
@@ -394,11 +411,11 @@ namespace cda_rail::solver::astar_based {
                   }
                   else {
                     size_t common_edge = tr_state.num_tr[i].routed_edges_current[k];
-                    if (collision_vss_check(tr_state, tr_list, network, i, j, common_edge) == 0) { // if collision happening
+                    if (collision_vss_check(tr_state, i, j, common_edge) == 0) { // if collision happening
                       return true; // collision detected. not valid successor
                     }
-                    else if (collision_vss_check(tr_state, tr_list, network, i, j) == 1) {
-                      insert_new_vss(tr_state, tr_list, network, i, j, common_edge); // TDD section
+                    else if (collision_vss_check(tr_state, i, j, common_edge) == 1) {
+                      insert_new_vss(tr_state, i, j, common_edge); // TDD section
                     }
                   }
                 }
@@ -413,17 +430,17 @@ namespace cda_rail::solver::astar_based {
     // insert VSS
     // save edges with index: {(100,150),(200),(),(),(200),...}: [0] has vss at 100&150,...
     // -> collision check fkts needs to be changed too!
-    bool insert_new_vss(TrainState& tr_state, const TrainList& tr_list, const Network& network, int i, int j, int edge_idx) {
+    bool insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
       // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
       // by stst: current_edge!=edge_idx. Then use prev_pos
       if (edge_idx != tr_state.num_tr[i].current_edge) {
-        new_vss_middle_of_edge(tr_state, tr_list, network, i, tr_state.num_tr[i].prev_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
+        new_vss_middle_of_edge(tr_state, i, tr_state.num_tr[i].prev_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
       }
       else if (edge_idx != tr_state.num_tr[j].current_edge) {
-        new_vss_middle_of_edge(tr_state, tr_list, network, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].prev_pos, edge_idx);
+        new_vss_middle_of_edge(tr_state, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].prev_pos, edge_idx);
       }
       else { // if both are ending in this edge; d.h. both's current_edge (stend,enend)
-        new_vss_middle_of_edge(tr_state, tr_list, network, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
+        new_vss_middle_of_edge(tr_state, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
       }
       std::sort(tr_state.edge_vss[edge_idx].begin, tr_state.edge_vss[edge_idx].end()); // sort the new added vss
       return true;
@@ -431,7 +448,10 @@ namespace cda_rail::solver::astar_based {
 
     // used in insert_new_vss
     // implement the new VSS
-    bool new_vss_middle_of_edge(TrainState& tr_state, const TrainList& tr_list, const Network& network, int tr1, double tr1_pos, int tr2, double tr2_pos, int edge_idx) {
+    bool new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
+      const Network& network = instance.const_n();
+      const TrainList& tr_list = instance.get_train_list();
+
       if (tr_state.edge_vss[edge_idx].size() == 0) { // no VSS implemented in the edge yet
         double middle_point = network.get_edge(edge_idx).length / 2;
         if (tr1_pos + tr_list.get_train(tr1).length > tr2_pos) {
@@ -550,7 +570,8 @@ namespace cda_rail::solver::astar_based {
         // SimpleStation ist sehr überschaubar
         // -------------------------------
         //      \--------------/
-        const auto instance_imported_vss = cda_rail::instances::VSSGenerationTimetable("path_to_example-network");
+        // TODO: const auto instance_imported_vss = cda_rail::instances::VSSGenerationTimetable("path_to_example-network");
+        //
 
 
         // Etwas ganz zum Schluss
@@ -571,8 +592,11 @@ namespace cda_rail::solver::astar_based {
     explicit AStarVSSPerformanceOptimizationSolver(const char* path);
 
     // TODO: Implement missing functions
-    bool solve(const TrainState& tr_state, const TrainList& tr_list, const Network& network, const GeneralSolver& instance) {
-      TrainState initial_state = initial_state(tr_state, tr_list, network, instance);
+    bool AStarVSSPerformanceOptimizationSolver::solve(TrainState& tr_state) {
+      // priority queue. "double" for "double cost"
+      std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>, std::greater<>> pq;
+
+      TrainState initial_state = initial_state(tr_state);
       // double initial_cost = initial_state.cost; // prev_states[0][0].cost;
       pq.emplace(initial_state.cost, {0.0, 0});  // (cost,(t,idx))
 
@@ -584,10 +608,10 @@ namespace cda_rail::solver::astar_based {
 
         TrainState current_state = prev_states[time][index]; // the state which its successor will be examined
 
-        if (goal_state(current_state, tr_list, network)) {
+        if (goal_state(current_state,,,,,,,,,,,,,,,,,,,,,,,,,)) {
           return true; // goal reached. TODO: evtl return the trainstate itself?
         }
-        if (update_state(current_state, tr_list, network)) {
+        else if (update_state(current_state,,,,,,,,,,,,,,,)) {
           // theres 1+ successor.
           for (size_t i = 0; i < prev_states[current_state.t].size(); ++i) {
             pq.emplace(prev_states[current_state.t][i].cost, {current_state.t + current_state.delta_t, i}); // push the new prev_states to pq
