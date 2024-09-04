@@ -14,8 +14,7 @@ class AStarVSSPerformanceOptimizationSolver
     : public GeneralSolver<
           instances::VSSGenerationTimetable,
           instances::SolVSSGenerationTimetable> {
-private:
-  // Private struct and properties
+
   struct Properties { // function of all the properties needed for tr_state etc
     std::vector<size_t> routed_edges;         // edges travelled
     std::vector<size_t> routed_edges_current; // edges travelled current state
@@ -44,6 +43,10 @@ private:
     }
   };
 
+private:
+  // Private struct and properties
+
+
   std::vector<std::vector<TrainState>> prev_states; // List of previous states
 
   double heuristic(TrainState& tr_state);
@@ -69,7 +72,7 @@ public:
 
 
 
-  bool AStarVSSPerformanceOptimizationSolver::solve(TrainState& initial_state) {
+  bool solve(TrainState& initial_state) {
     // priority queue. "double" for "double cost"
     std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>, std::greater<>> pq;
 
@@ -101,7 +104,7 @@ public:
   }
 
 
-  void AStarVSSPerformanceOptimizationSolver::initial_state(TrainState& tr_state) {
+  void initial_state(TrainState& tr_state) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 
@@ -133,7 +136,7 @@ public:
     prev_states[0].push_back(tr_state);  // Add the initial state to prev_states at t=0
   }
 
-  bool AStarVSSPerformanceOptimizationSolver::goal_state(TrainState& tr_state) {
+  bool goal_state(TrainState& tr_state) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 
@@ -151,7 +154,7 @@ public:
     return true;
   }
 
-  bool AStarVSSPerformanceOptimizationSolver::update_state(TrainState& tr_state) {
+  bool update_state(TrainState& tr_state) {
     // 1.find successors 2.check collision,vss 3.check cost
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
@@ -185,7 +188,7 @@ public:
 
 
   // Private function implementation
-  double AStarVSSPerformanceOptimizationSolver::heuristic(TrainState& tr_state) {
+  double heuristic(TrainState& tr_state) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 
@@ -208,14 +211,14 @@ public:
               // TODO:evtl use h[i] and add together at the end?
   }
 
-  double AStarVSSPerformanceOptimizationSolver::cost(TrainState& tr_state) {
+  double cost(TrainState& tr_state) {
     double g; // SIGMA(g_index)
     g = tr_state.num_tr.size() * tr_state.t; // Cost till here=no.trains*time
 
     return g + heuristic(tr_state); // f=g+h
   }
 
-  std::vector<TrainState> AStarVSSPerformanceOptimizationSolver::successors(TrainState& tr_state) {
+  std::vector<TrainState> successors(TrainState& tr_state) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 
@@ -279,7 +282,7 @@ public:
     }
   }
 
-  bool AStarVSSPerformanceOptimizationSolver::collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
+  bool collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
     // used in pot_collision_check
     // when two trains are in the same TDD, then it has to be checked if they collide
     // TrainList is defined in train.hpp line 33
@@ -334,7 +337,7 @@ public:
     }
   }
 
-  bool AStarVSSPerformanceOptimizationSolver::two_tr_pos_check(const TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
+  bool two_tr_pos_check(const TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
     const TrainList& tr_list = instance.get_train_list();
 
     // tr1 vorne, tr2 hinten
@@ -364,7 +367,7 @@ public:
     }
   }
 
-  bool AStarVSSPerformanceOptimizationSolver::pos_collision_check(const TrainState& tr_state) {
+  bool pos_collision_check(const TrainState& tr_state) {
     const Network& network = instance.const_n();
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // if for any two trains, position further search if edge is the same
@@ -418,7 +421,7 @@ public:
     return true;
   }
 
-  double AStarVSSPerformanceOptimizationSolver::new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
+  double new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 

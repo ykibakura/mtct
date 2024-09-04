@@ -16,4 +16,5 @@ package_add_test(
   ${CMAKE_CURRENT_SOURCE_DIR}/test_multiarray.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_helper.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/test_abstract_data_structure.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/test_general_performance_optimization_instances.cpp)
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_general_performance_optimization_instances.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/test_astar.cpp)
