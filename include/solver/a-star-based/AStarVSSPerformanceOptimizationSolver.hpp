@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <string>
 #include <utility>
+#include <queue>
+#include <vector>
 
 
 namespace cda_rail::solver::astar_based {
@@ -49,6 +51,7 @@ private:
 
   std::vector<std::vector<TrainState>> prev_states; // List of previous states
 
+  /*
   double heuristic(TrainState& tr_state);
   double cost(TrainState& tr_state);
   std::vector<TrainState> successors(TrainState& tr_state);
@@ -59,15 +62,17 @@ private:
   bool insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx);
   bool new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos,
                                                  int tr2, double tr2_pos, size_t edge_idx);
-
+  */
 
 
 public:
   // Public methods
+  /*
   void initial_state(TrainState& tr_state);
   bool goal_state(TrainState& tr_state);
   bool update_state(TrainState& tr_state);
   bool solve(TrainState& tr_state);
+   */
 
 
 
@@ -87,10 +92,10 @@ public:
 
       TrainState current_state = prev_states[time][index]; // the state which its successor will be examined
 
-      if (goal_state(current_state,,,,,,,,,,,,,,,,,,,,,,,,,)) {
+      if (goal_state(current_state)) {
         return true; // goal reached. TODO: evtl return the trainstate itself?
       }
-      else if (update_state(current_state,,,,,,,,,,,,,,,)) {
+      else /*if (update_state(current_state))*/ {
         // theres 1+ successor.
         for (size_t i = 0; i < prev_states[current_state.t].size(); ++i) {
           pq.emplace(prev_states[current_state.t][i].cost, {current_state.t + current_state.delta_t, i}); // push the new prev_states to pq
@@ -166,7 +171,7 @@ public:
     std::vector<TrainState> next_states_valid; // list of valid next states
 
     for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
-      if (pot_collision_check(next_states[i]) == 0) { // no collision
+      if (pos_collision_check(next_states[i]) == 0) { // no collision
         next_states[i].cost = cost(next_states[i]);
         next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
@@ -282,7 +287,7 @@ public:
     }
   }
 
-  bool collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
+  int collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
     // used in pot_collision_check
     // when two trains are in the same TDD, then it has to be checked if they collide
     // TrainList is defined in train.hpp line 33
@@ -292,8 +297,9 @@ public:
 
     // TODO: find() does not give iterator back?
     // .size()=1:startend. nth_path=.begin():start neth_path=end():end
-    int tr1_nth_path = std::find(tr_state.num_tr[tr1].routed_edges_current.begin(), tr_state.num_tr[tr1].routed_edges_current.end(), edge_idx);
-    int tr2_nth_path = std::find(tr_state.num_tr[tr2].routed_edges_current.begin(), tr_state.num_tr[tr2].routed_edges_current.end(), edge_idx);
+    int tr1_nth_path = std::distance(tr_state.num_tr[tr1].routed_edges_current.begin(), std::find(tr_state.num_tr[tr1].routed_edges_current.begin(), tr_state.num_tr[tr1].routed_edges_current.end(), edge_idx));
+    int tr2_nth_path = std::distance(tr_state.num_tr[tr2].routed_edges_current.begin(), std::find(tr_state.num_tr[tr2].routed_edges_current.begin(), tr_state.num_tr[tr2].routed_edges_current.end(), edge_idx));
+    // https://stackoverflow.com/questions/6136362/convert-iterator-to-int : begin() & end() gives iterator back
     // trX_nth_path: edge is n-th: needs to be either 0 OR .size()
 
     if (tr_state.num_tr[tr1].routed_edges_current.size() == 1 && tr_state.num_tr[tr2].routed_edges_current.size() == 1) {
@@ -337,7 +343,7 @@ public:
     }
   }
 
-  bool two_tr_pos_check(const TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
+  int two_tr_pos_check(const TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
     const TrainList& tr_list = instance.get_train_list();
 
     // tr1 vorne, tr2 hinten
@@ -405,7 +411,7 @@ public:
     return false; // When no collision: add VSS is needed, then return false
   }
 
-  void AStarVSSPerformanceOptimizationSolver::insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
+  void insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
     // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
     // by stst: current_edge!=edge_idx. Then use prev_pos
     if (edge_idx != tr_state.num_tr[i].current_edge) {
@@ -417,8 +423,8 @@ public:
     else { // if both are ending in this edge; d.h. both's current_edge (stend,enend)
       new_vss_middle_of_edge(tr_state, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
     }
-    std::sort(tr_state.edge_vss[edge_idx].begin, tr_state.edge_vss[edge_idx].end()); // sort the new added vss
-    return true;
+    std::sort(tr_state.edge_vss[edge_idx].begin(), tr_state.edge_vss[edge_idx].end()); // sort the new added vss
+    // return true;
   }
 
   double new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
