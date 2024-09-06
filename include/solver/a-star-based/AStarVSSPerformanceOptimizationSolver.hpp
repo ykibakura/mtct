@@ -79,15 +79,15 @@ public:
 
   bool solve(TrainState& initial_state) {
     // priority queue. "double" for "double cost"
-    std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>, std::greater<>> pq;
+    std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>>, std::greater<std::pair<double, std::pair<double, size_t>>>> pq;
 
     // double initial_cost = initial_state.cost; // prev_states[0][0].cost;
     pq.emplace(initial_state.cost, {0.0, 0});  // (cost,(t,idx))
 
     // Main loop
     while (!pq.empty()) {
-      auto [time, index] = state_index;
       auto [current_cost, state_index] = pq.top();
+      auto [time, index] = state_index;
       pq.pop();
 
       TrainState current_state = prev_states[time][index]; // the state which its successor will be examined
@@ -95,14 +95,17 @@ public:
       if (goal_state(current_state)) {
         return true; // goal reached. TODO: evtl return the trainstate itself?
       }
-      else /*if (update_state(current_state))*/ {
+      else if (update_state(current_state)) {
         // theres 1+ successor.
         for (size_t i = 0; i < prev_states[current_state.t].size(); ++i) {
-          pq.emplace(prev_states[current_state.t][i].cost, {current_state.t + current_state.delta_t, i}); // push the new prev_states to pq
+          pq.emplace(prev_states[current_state.t][i].cost,
+                     {current_state.t + current_state.delta_t,
+                      i}); // push the new prev_states to pq
         }
       } // do pq for next step
       else { // theres no successor from that state. Delete this state
-        prev_states[time][index].clear();
+        prev_states[time].erase(prev_states[time].begin() + index);  // Erase the state
+        // https://stackoverflow.com/questions/42523981/erase-element-of-struct-vector
       }
     }
     return false; // return false when no pq and it does not reach goal
@@ -203,14 +206,20 @@ public:
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
       //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
 
-      double d = network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex); // shortest path
-      double l_to_v_next = network.get_edge(tr_state.num_tr[i].current_edge).length - tr_state.num_tr[i].current_pos; // LÄNGE BIS DA
-      d += l_to_v_next; // add length to nearest vertex
-      double h_index = d / tr_list.get_train(i).max_speed;
-      h += h_index;
-      d = 0;
-      h_index = 0;// reset d=0 for next index
-      // repeat for the next index(h will be continuously added)
+      if (network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex).has_value()) {
+        d = network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex).value(); // shortest path
+        double l_to_v_next = network.get_edge(tr_state.num_tr[i].current_edge).length - tr_state.num_tr[i].current_pos; // LÄNGE BIS DA
+        d += l_to_v_next; // add length to nearest vertex
+        double h_index = d / tr_list.get_train(i).max_speed;
+        h += h_index;
+        d = 0;
+        h_index = 0;// reset d=0 for next index
+        // repeat for the next index(h will be continuously added)
+      }
+      else { // no valid path exists
+        return false;
+      }
+
     }
     return h;  // total h
               // TODO:evtl use h[i] and add together at the end?
@@ -238,7 +247,7 @@ public:
       // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
 
       for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
-        size_t l = paths[j].size;
+        size_t l = paths[j].size();
         succ_state[j] = tr_state; // copy tr_state to succ_state to edit
         succ_state[j].num_tr[i].prev_pos = tr_state.num_tr[i].current_pos; // update the starting position as prev position
         succ_state[j].num_tr[i].routed_edges_current.clear();
@@ -248,6 +257,7 @@ public:
           if (m + l > succ_state[j].num_tr[i].routed_edges.capacity()) {
             succ_state[j].num_tr[i].routed_edges.resize(m + l);
           }
+          // TODO: get_edge()?
           succ_state[j].num_tr[i].routed_edges[m + k] = network.get_edge(k); // store the edge travelling
           succ_state[j].num_tr[i].routed_edges_current[k] = network.get_edge(k); // store the edge travelling current to succ_state
 
@@ -296,48 +306,48 @@ public:
 
 
     // TODO: find() does not give iterator back?
-    // .size()=1:startend. nth_path=.begin():start neth_path=end():end
+    // .size()=1:startend. nth_path = 0 :start(stst OR stend). nth_path = size()-1: end(enend OR stend)
     int tr1_nth_path = std::distance(tr_state.num_tr[tr1].routed_edges_current.begin(), std::find(tr_state.num_tr[tr1].routed_edges_current.begin(), tr_state.num_tr[tr1].routed_edges_current.end(), edge_idx));
     int tr2_nth_path = std::distance(tr_state.num_tr[tr2].routed_edges_current.begin(), std::find(tr_state.num_tr[tr2].routed_edges_current.begin(), tr_state.num_tr[tr2].routed_edges_current.end(), edge_idx));
     // https://stackoverflow.com/questions/6136362/convert-iterator-to-int : begin() & end() gives iterator back
     // trX_nth_path: edge is n-th: needs to be either 0 OR .size()
 
     if (tr_state.num_tr[tr1].routed_edges_current.size() == 1 && tr_state.num_tr[tr2].routed_edges_current.size() == 1) {
-      // for except startend;
-      if ((tr1_nth_path == 0 && tr2_nth_path == 0) || (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.end() && tr2_nth_path == tr_state.num_tr[tr2].routed_edges_current.end())) {
-        // startstart or endend
+      // for except startend & startend;
+      // if ((tr1_nth_path == 0 && tr2_nth_path == 0) || (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.end() && tr2_nth_path == tr_state.num_tr[tr2].routed_edges_current.end())) {
+      if ((tr1_nth_path == 0 && tr2_nth_path == 0) || (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.size() - 1 && tr2_nth_path == tr_state.num_tr[tr2].routed_edges_current.size() - 1)) {
+          // startstart or endend
         return 0; // collision
       }
     }
 
-    if (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.begin() && tr2_nth_path != tr_state.num_tr[tr2].routed_edges_current.begin()) {
+    if (tr1_nth_path == 0 && tr2_nth_path == 0) {
       // tr1 and tr2 both starts from this edge_idx: bedingung für 2. (stend-stst & stend-stend combi)
-
-      if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.end()) {
+      if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.size() - 1) {
         // combi stend-stst with tr1 stst: tr1 vorn
         return two_tr_pos_check(tr_state, tr1, tr2, edge_idx);
       }
-      else if (tr2_nth_path != tr_state.num_tr[tr2].routed_edges_current.end()) {
+      if (tr2_nth_path != tr_state.num_tr[tr2].routed_edges_current.size() - 1) {
         // combi stend-stst with tr2 stst: tr2 vorn
         return two_tr_pos_check(tr_state, tr2, tr1, edge_idx);
       }
       else { // both stend
-        if (tr_state.num_tr[tr1].current_pos > tr_state.num_tr[tr1].current_pos) { // tr1 vorne
+        if (tr_state.num_tr[tr1].current_pos > tr_state.num_tr[tr2].current_pos) { // tr1 vorne
           return two_tr_pos_check(tr_state, tr1, tr2, edge_idx);
         }
-        else if (tr_state.num_tr[tr1].current_pos < tr_state.num_tr[tr1].current_pos) { // tr2 vorne
+        if (tr_state.num_tr[tr1].current_pos < tr_state.num_tr[tr2].current_pos) { // tr2 vorne
           return two_tr_pos_check(tr_state, tr2, tr1, edge_idx);
         }
-        else { // tr1.current_pos = tr2.current_pos
+        if (tr_state.num_tr[tr1].current_pos == tr_state.num_tr[tr2].current_pos) { // tr1.current_pos = tr2.current_pos
           return 0; // collision
         }
       }
     }
     else { // theres at least 1 enend. bedingung für 1. (stst-enend & stend-enend combi)
-      if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.begin()) { // tr1 enend, tr2 vorne
+      if (tr1_nth_path != 0) { // tr1 enend, tr2 vorne
         return two_tr_pos_check(tr_state, tr2, tr1, edge_idx);
       }
-      else { // tr2 enend, tr1 vorne
+      if (tr2_nth_path != 0) { // tr2 enend, tr1 vorne
         return two_tr_pos_check(tr_state, tr1, tr2, edge_idx);
       }
     }
@@ -347,6 +357,7 @@ public:
     const TrainList& tr_list = instance.get_train_list();
 
     // tr1 vorne, tr2 hinten
+    // TODO: prev_pos?
     double front_end = tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length;
     double back_start = tr_state.num_tr[tr2].current_pos;
 
@@ -385,8 +396,8 @@ public:
           return true; // two trains cannot be in unbreakable section. not valid successor. (break)
         }
         else { // theyre not in unbreakable edge
-          for (size_t k = 0; l < tr_state.num_tr[i].routed_edges_current.size(); ++k){ // going for every edge in a path
-            for (size_t l = 0; n < tr_state.num_tr[j].routed_edges_current.size(); ++l) {
+          for (size_t k = 0; k < tr_state.num_tr[i].routed_edges_current.size(); ++k){ // going for every edge in a path
+            for (size_t l = 0; l < tr_state.num_tr[j].routed_edges_current.size(); ++l) {
               if (tr_state.num_tr[i].routed_edges_current[k] == tr_state.num_tr[j].routed_edges_current[l]) {
                 // if same edge index found; d.h. if they go through the same edge
                 if ((k != 0 && k != tr_state.num_tr[i].routed_edges_current.size()) || (l != 0 && l != tr_state.num_tr[j].routed_edges_current.size())) {
@@ -398,7 +409,7 @@ public:
                   if (collision_vss_check(tr_state, i, j, common_edge) == 0) { // if collision happening
                     return true; // collision detected. not valid successor
                   }
-                  else if (collision_vss_check(tr_state, i, j, common_edge) == 1) {
+                  if (collision_vss_check(tr_state, i, j, common_edge) == 1) {
                     insert_new_vss(tr_state, i, j, common_edge); // TDD section
                   }
                 }
@@ -462,12 +473,15 @@ public:
       }
     }
 
+
     else { // exists 1+ VSS in the edge
       for (int i = 0; i < tr_state.edge_vss[edge_idx].size(); ++i) { // go through every vss on edge_idx
-        if (back_start <= tr_state.edge_vss[edge_idx][i]) { // check which VSS section is back_start at
-          double middle_section = (tr_state.edge_vss[edge_idx][i-1] + tr_state.edge_vss[edge_idx][i]) / 2;
-          if (tr1_pos + tr_list.get_train(tr1).length > tr2_pos) {
-            // if tr1 vorne, tr2 hinten
+        double middle_section = (tr_state.edge_vss[edge_idx][i - 1] + tr_state.edge_vss[edge_idx][i]) / 2;
+
+        if (tr1_pos + tr_list.get_train(tr1).length > tr2_pos) { // if tr1 vorne, tr2 hinten
+          double back_start = tr_state.num_tr[tr2].current_pos;
+          if (back_start <= tr_state.edge_vss[edge_idx][i]) { // check which VSS section is back_start at
+
             if (tr1_pos + tr_list.get_train(tr1).length > middle_section && tr2_pos < middle_section) {
               // if the middle point is between the trains
               tr_state.edge_vss[edge_idx].push_back(middle_section);
@@ -480,7 +494,10 @@ public:
               tr_state.edge_vss[edge_idx].push_back(tr1_pos + tr_list.get_train(tr1).length); // add VSS by the first train
             }
           }
-          else {
+        }
+        else { // tr2 vorne, tr1 hinten
+          double back_start = tr_state.num_tr[tr1].current_pos;
+          if (back_start <= tr_state.edge_vss[edge_idx][i]) { // check which VSS section is back_start at
             if (tr2_pos + tr_list.get_train(tr2).length > middle_section && tr1_pos < middle_section) {
               // if the middle point is between the trains
               tr_state.edge_vss[edge_idx].push_back(middle_section);
@@ -496,7 +513,7 @@ public:
         }
       }
     }
-    return true;
+    return true; // TODO: Bool or Double?
   }
 
 
