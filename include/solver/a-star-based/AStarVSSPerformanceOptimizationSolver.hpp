@@ -17,39 +17,8 @@ class AStarVSSPerformanceOptimizationSolver
           instances::VSSGenerationTimetable,
           instances::SolVSSGenerationTimetable> {
 
-  struct Properties { // function of all the properties needed for tr_state etc
-    std::vector<size_t> routed_edges;         // edges travelled
-    std::vector<size_t> routed_edges_current; // edges travelled current state
-
-    double current_pos;  // Current position
-    double prev_pos;     // position from previous state
-    int    entry_vertex; // entry vertex
-    int    exit_vertex;  // goal vertex
-    int    entry_edge;
-    int    current_edge; // current edge
-    int    exit_edge;
-  };
-
-  struct TrainState {
-    std::vector<Properties> num_tr;  // vector for every train: properties
-    double                  t;       // time
-    double                  delta_t; // delta t
-    int    counter; // counter: how many times the state is updated
-    double cost;
-    std::vector<std::vector<double>> edge_vss;
-
-    // Constructor
-    TrainState(size_t n)
-        : num_tr(n), t(0.0), delta_t(0.0), counter(0), cost(0.0),
-          edge_vss(n) { // constructor.
-    }
-  };
-
 private:
   // Private struct and properties
-
-
-  std::vector<std::vector<TrainState>> prev_states; // List of previous states
 
   /*
   double heuristic(TrainState& tr_state);
@@ -64,6 +33,18 @@ private:
                                                  int tr2, double tr2_pos, size_t edge_idx);
   */
 
+  struct Properties { // function of all the properties needed for tr_state etc
+    std::vector<size_t> routed_edges;         // edges travelled
+    std::vector<size_t> routed_edges_current; // edges travelled current state
+
+    double current_pos;  // Current position
+    double prev_pos;     // position from previous state
+    int    entry_vertex; // entry vertex
+    int    exit_vertex;  // goal vertex
+    int    entry_edge;
+    int    current_edge; // current edge
+    int    exit_edge;
+  };
 
 public:
   // Public methods
@@ -74,7 +55,31 @@ public:
   bool solve(TrainState& tr_state);
    */
 
+  explicit AStarVSSPerformanceOptimizationSolver(const std::string& instance_path) {
+    instance = instances::VSSGenerationTimetable::import_instance(instance_path);
+  };
 
+  struct TrainState {
+    std::vector<Properties> num_tr;  // vector for every train: properties
+    double                  t;       // time
+    double                  delta_t; // delta t
+    int    counter; // counter: how many times the state is updated
+    double cost;
+    std::vector<std::vector<double>> edge_vss;
+
+    // Constructor
+    TrainState()
+        : t(0.0), delta_t(0.0), counter(0), cost(0.0) {}
+    // default const
+
+    TrainState(size_t n)
+        : num_tr(n), t(0.0), delta_t(0.0), counter(0), cost(0.0),
+          edge_vss(n) {}
+    // constructor
+    // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
+  };
+
+  std::vector<std::vector<TrainState>> prev_states; // List of previous states
 
 
   bool solve(TrainState& initial_state) {
@@ -82,7 +87,7 @@ public:
     std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>>, std::greater<std::pair<double, std::pair<double, size_t>>>> pq;
 
     // double initial_cost = initial_state.cost; // prev_states[0][0].cost;
-    pq.emplace(initial_state.cost, {0.0, 0});  // (cost,(t,idx))
+    pq.emplace(std::make_pair(initial_state.cost, std::make_pair(0.0, 0)));  // (cost,(t,idx))
 
     // Main loop
     while (!pq.empty()) {
@@ -98,9 +103,8 @@ public:
       else if (update_state(current_state)) {
         // theres 1+ successor.
         for (size_t i = 0; i < prev_states[current_state.t].size(); ++i) {
-          pq.emplace(prev_states[current_state.t][i].cost,
-                     {current_state.t + current_state.delta_t,
-                      i}); // push the new prev_states to pq
+          pq.emplace(std::make_pair(prev_states[current_state.t][i].cost, std::make_pair(current_state.t + current_state.delta_t, i)));
+          // push the new prev_states to pq
         }
       } // do pq for next step
       else { // theres no successor from that state. Delete this state
@@ -137,7 +141,7 @@ public:
     }
 
     tr_state.cost = heuristic(tr_state);  // Calculate the heuristic cost
-    tr_state.edge_vss.resize(network.edges.size());  // Resize edge_vss to match the number of edges
+    tr_state.edge_vss.resize(network.number_of_edges());  // Resize edge_vss to match the number of edges
     tr_state.edge_vss.clear();  // Clear any existing VSS information
 
     prev_states[0].clear();  // Clear any existing initial states at t=0
@@ -258,8 +262,8 @@ public:
             succ_state[j].num_tr[i].routed_edges.resize(m + l);
           }
           // TODO: get_edge()?
-          succ_state[j].num_tr[i].routed_edges[m + k] = network.get_edge(k); // store the edge travelling
-          succ_state[j].num_tr[i].routed_edges_current[k] = network.get_edge(k); // store the edge travelling current to succ_state
+          succ_state[j].num_tr[i].routed_edges[m + k] = k; // store the edge travelling
+          succ_state[j].num_tr[i].routed_edges_current[k] = k; // store the edge travelling current to succ_state
 
           if (tr_list.get_train(i).max_speed <= network.get_edge(k).max_speed) {
             // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
@@ -289,12 +293,7 @@ public:
       }
     }
     next_states = succ_state;
-    if (!next_states.empty()) {
-      return next_states;
-    }
-    else {
-      return false;
-    }
+    return next_states;
   }
 
   int collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
@@ -353,7 +352,7 @@ public:
     }
   }
 
-  int two_tr_pos_check(const TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
+  int two_tr_pos_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
     const TrainList& tr_list = instance.get_train_list();
 
     // tr1 vorne, tr2 hinten
@@ -384,7 +383,7 @@ public:
     }
   }
 
-  bool pos_collision_check(const TrainState& tr_state) {
+  bool pos_collision_check(TrainState& tr_state) {
     const Network& network = instance.const_n();
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // if for any two trains, position further search if edge is the same
@@ -516,6 +515,7 @@ public:
     return true; // TODO: Bool or Double?
   }
 
+instances::SolVSSGenerationTimetable solve(int time_limit, bool debug_input) override {return instances::SolVSSGenerationTimetable(instance, 15);};
 
 
 }; // class

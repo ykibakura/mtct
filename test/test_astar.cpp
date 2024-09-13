@@ -9,13 +9,17 @@
 
 using namespace cda_rail::solver::astar_based;
 
+
 // for initial_state
 TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   size_t number_of_trains = 2;
-  TrainState state;
 
-  AStarVSSPerformanceOptimizationSolver solver;
-  solver.initial_state(state);
+
+  AStarVSSPerformanceOptimizationSolver solver("./example-networks/SimpleStation/");
+  //solver.solve(...)
+  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size());
+  solver.update_state(state);  // Use an object to call the member function
+
 
   // Verify initialization for each train
   for (size_t i = 0; i < number_of_trains; ++i) {
@@ -39,20 +43,20 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   EXPECT_GE(state.cost, 0.0);
 
   // Verify that edge_vss is properly resized and cleared
-  EXPECT_EQ(state.edge_vss.size(), solver.instance.const_n().edges.size());
+  EXPECT_EQ(state.edge_vss.size(), solver.get_instance().const_n().number_of_edges());
   EXPECT_TRUE(state.edge_vss.empty());
 }
 
 // Test to check if the solver can correctly identify the goal state
-TEST(AStarVSSPerformanceOptimizationSolverTest, GoalStatetest) {
-  TrainState state;
+/*TEST(AStarVSSPerformanceOptimizationSolverTest, GoalStatetest) {
+  AStarVSSPerformanceOptimizationSolver::TrainState state;
 
-  double state.num_tr[0].current_pos = 200;
-  double state.num_tr[0].goal_pos = 200;
-  double state.num_tr[]
+  state.num_tr[0].current_pos = 200;
+  state.num_tr[0].goal_pos = 200;
+  state.num_tr[]
 
 
 
-}
+}*/
 
 
