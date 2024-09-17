@@ -14,7 +14,6 @@ using namespace cda_rail::solver::astar_based;
 TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   size_t number_of_trains = 2;
 
-
   AStarVSSPerformanceOptimizationSolver solver("./example-networks/SimpleStation/");
   //solver.solve(...)
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size());
