@@ -80,6 +80,7 @@ public:
           edge_vss(n) {
       instances::SolVSSGenerationTimetable timetable_instance;
       delta_t = timetable_instance.get_dt();
+
     }
     // constructor
     // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
