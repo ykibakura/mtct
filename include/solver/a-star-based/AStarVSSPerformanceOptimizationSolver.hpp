@@ -69,12 +69,18 @@ public:
 
     // Constructor
     TrainState()
-        : t(0.0), delta_t(0.0), counter(0), cost(0.0) {}
+        : t(0.0), counter(0), cost(0.0) {
+      instances::SolVSSGenerationTimetable timetable_instance;
+      delta_t = timetable_instance.get_dt();
+    }
     // default const
 
     TrainState(size_t n)
-        : num_tr(n), t(0.0), delta_t(0.0), counter(0), cost(0.0),
-          edge_vss(n) {}
+        : num_tr(n), t(0.0), counter(0), cost(0.0),
+          edge_vss(n) {
+      instances::SolVSSGenerationTimetable timetable_instance;
+      delta_t = timetable_instance.get_dt();
+    }
     // constructor
     // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
   };
