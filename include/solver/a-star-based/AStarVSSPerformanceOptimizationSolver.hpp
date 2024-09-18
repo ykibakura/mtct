@@ -69,19 +69,12 @@ public:
 
     // Constructor
     TrainState()
-        : t(0.0), counter(0), cost(0.0) {
-      instances::SolVSSGenerationTimetable timetable_instance;
-      delta_t = timetable_instance.get_dt();
-    }
-    // default const
+        : t(0.0), delta_t(0.0), counter(0), cost(0.0) {}
+    // default constructor -> is 0 reasonable choice here?!
 
-    TrainState(size_t n)
-        : num_tr(n), t(0.0), counter(0), cost(0.0),
-          edge_vss(n) {
-      instances::SolVSSGenerationTimetable timetable_instance;
-      delta_t = timetable_instance.get_dt();
-
-    }
+    TrainState(size_t num_tr_input, double t_input, double delta_t_input, double cost_input, size_t num_edges_input)
+        : num_tr(num_tr_input), t(t_input), delta_t(delta_t_input), counter(0), cost(cost_input),
+          edge_vss(num_edges_input) {}
     // constructor
     // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
   };
@@ -243,34 +236,63 @@ public:
     return g + heuristic(tr_state); // f=g+h
   }
 
-  std::vector<TrainState> successors(TrainState& tr_state) {
+  std::vector<TrainState> successors(const TrainState& tr_state) {
+    // TODO: Note, I added const, because tr_state should not be changes here if I understand correctly
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 
     std::vector<TrainState> next_states; // list of next states.
-    std::vector<TrainState> succ_state; // copy of tr_state for editing
+    std::vector<TrainState> succ_state; // copy of tr_state for editing -> TODO: This does not copy anything, it is empty!
+    // TODO: Also, succ_state is a vector but tr_state is not?!
     // reason to make succ_state is so that when something goes wrong the next_states is returned empty.
     double remain_time = tr_state.delta_t;
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // for each trains
       // for all trains, they move to next point by the max speed
-      std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_edge);
+      // TODO: Check if you are really looking for the correct size of paths, this looks odd to be, I would expect distance travelled in delta_t + current_pos (on edge!, not in total!)
+      std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.delta_t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_edge);
       // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
+
+      // TODO: Is succ_state only temporary???
+      succ_state.clear(); // TODO: Is this what you want here???
 
       for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
         size_t l = paths[j].size();
-        succ_state[j] = tr_state; // copy tr_state to succ_state to edit
+        // TODO: Problem with the following line. succ_state is empy, so the j-th element does not exist!
+        // TODO: Is the following what you want?
+        // TODO: Do you really want index j? Because if i>=1, I doubt that...
+        // TODO: ... unles this is only temporary, bute then you would need to clear before?!
+        // TODO: BEGIN
+        assert(succ_state.size() == j);
+        succ_state.emplace_back(tr_state);
+        assert(succ_state.size() == j + 1);
+        // TODO: END
+
+        //succ_state[j] = tr_state; // copy tr_state to succ_state to edit -> TODO: This is not needed anymore then
+
         succ_state[j].num_tr[i].prev_pos = tr_state.num_tr[i].current_pos; // update the starting position as prev position
         succ_state[j].num_tr[i].routed_edges_current.clear();
         size_t m = succ_state[j].num_tr[i].routed_edges.size();
 
         for (size_t k = 0; k < l; ++k) { // looking at every possible path: for each Kantenindex:0-(l-1). k=edgeindex
-          if (m + l > succ_state[j].num_tr[i].routed_edges.capacity()) {
+          /**if (m + l > succ_state[j].num_tr[i].routed_edges.capacity()) {
             succ_state[j].num_tr[i].routed_edges.resize(m + l);
-          }
-          // TODO: get_edge()?
-          succ_state[j].num_tr[i].routed_edges[m + k] = k; // store the edge travelling
-          succ_state[j].num_tr[i].routed_edges_current[k] = k; // store the edge travelling current to succ_state
+          }**/
+          // TODO: get_edge()? -> Ja, paths[j][k] würde mehr Sinn ergeben wir k als Wert im Vektor zu speichern!
+          // TODO: Gleicher Fehler wie oben [.] erzeugt kein neues Element im Vektor, sondern nur Zugriff auf bereits existierendes Element!
+          // TODO: BEGIN
+          assert(succ_state[j].num_tr[i].routed_edges.size() == m + k);
+                succ_state[j].num_tr[i].routed_edges.emplace_back(paths[j][k]);
+                assert(succ_state[j].num_tr[i].routed_edges.size() == m + k + 1);
+
+                assert(succ_state[j].num_tr[i].routed_edges_current.size() == k);
+                succ_state[j].num_tr[i].routed_edges_current.emplace_back(k);
+                assert(succ_state[j].num_tr[i].routed_edges_current.size() == k + 1);
+                // TODO: END
+
+                // TODO: Following lines not needed anymore
+          //succ_state[j].num_tr[i].routed_edges[m + k] = k; // store the edge travelling
+          //succ_state[j].num_tr[i].routed_edges_current[k] = k; // store the edge travelling current to succ_state
 
           if (tr_list.get_train(i).max_speed <= network.get_edge(k).max_speed) {
             // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
@@ -294,12 +316,12 @@ public:
         }
         label: // skipped
         remain_time = tr_state.delta_t; //initialise again for next for-schleife
-        succ_state.push_back(tr_state); // add new state to successor_state(tr_state copy)
+        //succ_state.push_back(tr_state); // add new state to successor_state(tr_state copy) -> TODO: Why? Eventuell lässt sich der o.g. Fehler auch behebn, wenn du das hier früher machen würdest...
         next_states.push_back(tr_state); // add new state to next_states(yet empty)
         // TODO: Check push_back function
       }
     }
-    next_states = succ_state;
+    next_states = succ_state; // TODO: Why? What is the purpuse of next_states before?!
     return next_states;
   }
 
