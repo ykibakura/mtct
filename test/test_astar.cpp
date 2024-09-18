@@ -17,7 +17,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
 
   AStarVSSPerformanceOptimizationSolver solver("./example-networks/SimpleStation/");
   //solver.solve(...)
-  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0, solver.get_instance().const_n().number_of_edges());
+  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
   // solver.update_state(state);  // Use an object to call the member function
 
@@ -50,7 +50,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
 }
 
 // UpdateState test
-/*TEST(AStarVSSPerformanceOptimizationSolverTest, UpdateStateTest) {
+TEST(AStarVSSPerformanceOptimizationSolverTest, UpdateStateTest) {
   size_t expected_number_of_counter = 3;
 
   AStarVSSPerformanceOptimizationSolver solver("./example-networks/SimpleStation/");
@@ -62,6 +62,6 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
 
 
 
-}*/
+}
 
 
