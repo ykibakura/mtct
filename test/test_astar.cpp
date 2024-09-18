@@ -10,6 +10,7 @@
 using namespace cda_rail::solver::astar_based;
 
 
+
 // for initial_state
 TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   size_t number_of_trains = 2;
