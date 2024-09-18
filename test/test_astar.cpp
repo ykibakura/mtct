@@ -15,11 +15,11 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   const size_t expected_number_of_trains = 3;
   const size_t expected_number_of_edges = 22;
 
-  AStarVSSPerformanceOptimizationSolver solver("./example-networks/SimpleStation/");
+  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
   //solver.solve(...)
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
-   solver.update_state(state);  // Use an object to call the member function
+  // solver.update_state(state);  // Use an object to call the member function
 
   EXPECT_EQ(expected_number_of_trains, solver.get_instance().get_train_list().size());
   EXPECT_EQ(expected_number_of_edges, solver.get_instance().const_n().number_of_edges());
@@ -57,8 +57,9 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, UpdateStateTest) {
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
   solver.update_state(state);
-
+  // TODO: First check successors()?
   EXPECT_EQ(1, state.counter);
+  EXPECT_EQ(15.0, state.t);
 
 
 
