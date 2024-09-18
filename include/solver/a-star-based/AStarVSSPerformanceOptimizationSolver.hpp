@@ -63,25 +63,18 @@ public:
     std::vector<Properties> num_tr;  // vector for every train: properties
     double                  t;       // time
     double                  delta_t; // delta t
-    int    counter; // counter: how many times the state is updated
+    size_t    counter; // counter: how many times the state is updated
     double cost;
     std::vector<std::vector<double>> edge_vss;
 
     // Constructor
     TrainState()
-        : t(0.0), counter(0), cost(0.0) {
-      instances::SolVSSGenerationTimetable timetable_instance;
-      delta_t = timetable_instance.get_dt();
-    }
+        : t(0.0), delta_t(0.0), counter(0), cost(0.0) {}
     // default const
 
-    TrainState(size_t n)
-        : num_tr(n), t(0.0), counter(0), cost(0.0),
-          edge_vss(n) {
-      instances::SolVSSGenerationTimetable timetable_instance;
-      delta_t = timetable_instance.get_dt();
-
-    }
+    TrainState(size_t num_tr_input, double t_input, double dt_input, size_t counter_input, double cost_input, size_t num_edges_input)
+        : num_tr(num_tr_input), t(t_input), delta_t(dt_input), counter(counter_input), cost(cost_input),
+          edge_vss(num_edges_input) {}
     // constructor
     // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
   };
