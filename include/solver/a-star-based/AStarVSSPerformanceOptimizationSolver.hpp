@@ -240,9 +240,9 @@ public:
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 
-    std::vector<TrainState> next_states = std::vector<TrainState>(100); // list of valid next states.
-    std::vector<TrainState> succ_states = std::vector<TrainState>(100); // list of next states without collision checked (without validity)
-    // sizeof vector pre-defined: 100
+    std::vector<TrainState> next_states = std::vector<TrainState>(100); // list of valid next states, size 100 predefined
+    TrainState succ_state = tr_state; // next state candidate: if valid successor->copied to next_states.
+    // as a default value; copy tr_state to succ_state to edit
     // https://stackoverflow.com/questions/10559283/how-to-create-a-vector-of-user-defined-size-but-with-no-predefined-values
     double remain_time = tr_state.delta_t;
 
@@ -251,38 +251,35 @@ public:
       std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.delta_t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_edge);
       // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
 
-      if (succ_states.size() < paths.size()) { // resize if succ_states doesnot have enough size
-        succ_states.resize(paths.size());
-      }
       if (next_states.size() < paths.size()) { // resize if next_states doesnot have enough size
         next_states.resize(paths.size());
       }
 
       for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
         size_t l = paths[j].size();
-        succ_states[j] = tr_state; // copy tr_state to succ_state to edit: to start with
-        succ_states[j].num_tr[i].prev_pos = tr_state.num_tr[i].current_pos; // update the starting position as prev position
-        succ_states[j].num_tr[i].routed_edges_current.clear();
-        size_t m = succ_states[j].num_tr[i].routed_edges.size();
+        succ_state = tr_state; // copy tr_state to succ_state to edit
+        succ_state.num_tr[i].prev_pos = tr_state.num_tr[i].current_pos; // update the starting position as prev position
+        succ_state.num_tr[i].routed_edges_current.clear();
+        size_t m = succ_state.num_tr[i].routed_edges.size();
 
         for (size_t k = 0; k < l; ++k) { // looking at every possible path: for each Kantenindex:0-(l-1). k=edgeindex
-          if (m + l > succ_states[j].num_tr[i].routed_edges.capacity()) {
-            succ_states[j].num_tr[i].routed_edges.resize(m + l);
+          if (m + l > succ_state.num_tr[i].routed_edges.capacity()) {
+            succ_state.num_tr[i].routed_edges.resize(m + l);
           }
-          if (l > succ_states[j].num_tr[i].routed_edges_current.capacity()) {
-            succ_states[j].num_tr[i].routed_edges_current.resize(l);
+          if (l > succ_state.num_tr[i].routed_edges_current.capacity()) {
+            succ_state.num_tr[i].routed_edges_current.resize(l);
           }
           // TODO: get_edge()?
-          succ_states[j].num_tr[i].routed_edges[m + k] = k; // store the edge travelling
-          succ_states[j].num_tr[i].routed_edges_current[k] = k; // store the edge travelling current to succ_state
-          // TODO: for the first successor: routed_edges_current.size()=0
+          succ_state.num_tr[i].routed_edges[m + k] = k; // store the edge travelling
+          succ_state.num_tr[i].routed_edges_current[k] = k; // store the edge travelling current to succ_state
+          // TODO: k? NEEDS TO BE CHECKED!
 
           if (tr_list.get_train(i).max_speed <= network.get_edge(k).max_speed) {
             // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
             remain_time -= network.get_edge(k).length / tr_list.get_train(i).max_speed;
             if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
-              succ_states[j].num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
-              succ_states[j].num_tr[i].current_pos = tr_list.get_train(i).max_speed * remain_time;
+              succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
+              succ_state.num_tr[i].current_pos = tr_list.get_train(i).max_speed * remain_time;
               // current_pos = speed * remain_time
               goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
             }
@@ -290,8 +287,8 @@ public:
           else {
             remain_time -= network.get_edge(k).length / network.get_edge(k).max_speed;
             if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
-              succ_states[j].num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
-              succ_states[j].num_tr[i].current_pos = network.get_edge(k).max_speed * remain_time;
+              succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
+              succ_state.num_tr[i].current_pos = network.get_edge(k).max_speed * remain_time;
               // current_pos = speed * remain_time
               goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
             }
@@ -299,12 +296,14 @@ public:
         }
         label: // skipped
         remain_time = tr_state.delta_t; //initialise again for next for-schleife
-        succ_states.push_back(tr_state); // add new state to successor_state(tr_state copy)
-        next_states.push_back(tr_state); // add new state to next_states(yet empty)
+        next_states[j] = succ_state;
+
+        // succ_state.clear();
+        succ_state = tr_state; // reset the succ_state to default; since clear() doesnot work for struct
         // TODO: Check push_back function: not needed anymore? 9.19
       }
     }
-    next_states = succ_states;
+
     return next_states;
   }
 
