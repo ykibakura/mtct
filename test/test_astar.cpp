@@ -49,11 +49,18 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   EXPECT_EQ(state.edge_vss.size(), solver.get_instance().const_n().number_of_edges());
 }
 
+TEST(AStarVSSPerformanceOptimizationSolverTest, SuccessorTest) {
+  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
+  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
+
+  std::vector<AStarVSSPerformanceOptimizationSolver::TrainState> next_states = solver.successors(state);
+
+}
 // UpdateState test
 TEST(AStarVSSPerformanceOptimizationSolverTest, UpdateStateTest) {
   size_t expected_number_of_counter = 3;
 
-  AStarVSSPerformanceOptimizationSolver solver("./example-networks/SimpleStation/");
+  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
   solver.update_state(state);
