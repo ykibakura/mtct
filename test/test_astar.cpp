@@ -51,7 +51,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
 
 TEST(AStarVSSPerformanceOptimizationSolverTest, SuccessorTest) {
   AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
-  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
+  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 30.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
   std::vector<AStarVSSPerformanceOptimizationSolver::TrainState> next_states = solver.successors(state);
 

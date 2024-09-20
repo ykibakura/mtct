@@ -254,7 +254,7 @@ public:
       if (next_states.size() < paths.size()) { // resize if next_states doesnot have enough size
         next_states.resize(paths.size());
       }
-
+      // TODO: i=0 doesnot work! i=1 works. Needs to be geprüft
       for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
         size_t l = paths[j].size();
         succ_state = tr_state; // copy tr_state to succ_state to edit
@@ -270,13 +270,12 @@ public:
             succ_state.num_tr[i].routed_edges_current.resize(l);
           }
           // TODO: get_edge()?
-          succ_state.num_tr[i].routed_edges[m + k] = k; // store the edge travelling
-          succ_state.num_tr[i].routed_edges_current[k] = k; // store the edge travelling current to succ_state
-          // TODO: k? NEEDS TO BE CHECKED!
+          succ_state.num_tr[i].routed_edges[m + k] = paths[j][k]; // store the edge travelling
+          succ_state.num_tr[i].routed_edges_current[k] = paths[j][k]; // store the edge travelling current to succ_state
 
           if (tr_list.get_train(i).max_speed <= network.get_edge(k).max_speed) {
             // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
-            remain_time -= network.get_edge(k).length / tr_list.get_train(i).max_speed;
+            remain_time -= network.get_edge(paths[j][k]).length / tr_list.get_train(i).max_speed;
             if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
               succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
               succ_state.num_tr[i].current_pos = tr_list.get_train(i).max_speed * remain_time;
@@ -285,10 +284,10 @@ public:
             }
           }
           else {
-            remain_time -= network.get_edge(k).length / network.get_edge(k).max_speed;
+            remain_time -= network.get_edge(paths[j][k]).length / network.get_edge(paths[j][k]).max_speed;
             if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
               succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
-              succ_state.num_tr[i].current_pos = network.get_edge(k).max_speed * remain_time;
+              succ_state.num_tr[i].current_pos = network.get_edge(paths[j][k]).max_speed * remain_time;
               // current_pos = speed * remain_time
               goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
             }
