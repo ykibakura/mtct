@@ -12,6 +12,7 @@ using namespace cda_rail::solver::astar_based;
 
 // for initial_state
 TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
+  // TODO: Check on Heuristics
   const size_t expected_number_of_trains = 3;
   const size_t expected_number_of_edges = 22;
 
@@ -20,7 +21,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
   // solver.update_state(state);  // Use an object to call the member function
-
+  solver.initial_state(state);
   EXPECT_EQ(expected_number_of_trains, solver.get_instance().get_train_list().size());
   EXPECT_EQ(expected_number_of_edges, solver.get_instance().const_n().number_of_edges());
   EXPECT_EQ(expected_number_of_trains, state.num_tr.size());
@@ -51,7 +52,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
 
 TEST(AStarVSSPerformanceOptimizationSolverTest, SuccessorTest) {
   AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
-  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 30.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
+  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 20.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
   std::vector<AStarVSSPerformanceOptimizationSolver::TrainState> next_states = solver.successors(state);
 

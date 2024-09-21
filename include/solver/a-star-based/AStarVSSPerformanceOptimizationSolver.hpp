@@ -141,6 +141,7 @@ public:
     }
 
     tr_state.cost = heuristic(tr_state);  // Calculate the heuristic cost
+    // TODO: check heuristic
     tr_state.edge_vss.resize(network.number_of_edges());  // Resize edge_vss to match the number of edges
     tr_state.edge_vss.clear();  // Clear any existing VSS information
 
@@ -206,14 +207,18 @@ public:
 
     double h = 0; // heuristic wert
     double d = 0; // distance
+    // TODO: check on Monday, has_edge returns me true but shortest_path gives me error back
+    bool check_has_edge = network.has_edge(tr_state.num_tr[0].current_edge);
+    std::optional<double> check_shortest_path = network.shortest_path(tr_state.num_tr[2].current_edge, tr_state.num_tr[2].exit_vertex);
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
       //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
 
-      if (network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex).has_value()) {
-        d = network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex).value(); // shortest path
+      if (network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex)) {
+        d = *network.shortest_path(tr_state.num_tr[i].current_edge, tr_state.num_tr[i].exit_vertex); // shortest path
+        // https://stackoverflow.com/questions/27384571/c-convert-boostoptionaldouble-to-double
         double l_to_v_next = network.get_edge(tr_state.num_tr[i].current_edge).length - tr_state.num_tr[i].current_pos; // LÄNGE BIS DA
-        d += l_to_v_next; // add length to nearest vertex
+        d = l_to_v_next + d; // add length to nearest vertex
         double h_index = d / tr_list.get_train(i).max_speed;
         h += h_index;
         d = 0;
@@ -241,9 +246,11 @@ public:
     const TrainList& tr_list = instance.get_train_list();
 
     std::vector<TrainState> next_states = std::vector<TrainState>(100); // list of valid next states, size 100 predefined
+    // https://stackoverflow.com/questions/10559283/how-to-create-a-vector-of-user-defined-size-but-with-no-predefined-values
     TrainState succ_state = tr_state; // next state candidate: if valid successor->copied to next_states.
     // as a default value; copy tr_state to succ_state to edit
-    // https://stackoverflow.com/questions/10559283/how-to-create-a-vector-of-user-defined-size-but-with-no-predefined-values
+    std::vector<std::vector<Properties>> paths_sorted_with_num_tr = std::vector<std::vector<Properties>>(tr_state.num_tr.size());
+    // paths_sorted_with_num_tr[i][n] with i=num_tr, n for each paths
     double remain_time = tr_state.delta_t;
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // for each trains
@@ -254,22 +261,21 @@ public:
       if (next_states.size() < paths.size()) { // resize if next_states doesnot have enough size
         next_states.resize(paths.size());
       }
-      // TODO: i=0 doesnot work! i=1 works. Needs to be geprüft
       for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
         size_t l = paths[j].size();
+        paths_sorted_with_num_tr[i].resize(paths.size()); // resize to no. path available
         succ_state = tr_state; // copy tr_state to succ_state to edit
         succ_state.num_tr[i].prev_pos = tr_state.num_tr[i].current_pos; // update the starting position as prev position
         succ_state.num_tr[i].routed_edges_current.clear();
         size_t m = succ_state.num_tr[i].routed_edges.size();
 
         for (size_t k = 0; k < l; ++k) { // looking at every possible path: for each Kantenindex:0-(l-1). k=edgeindex
-          if (m + l > succ_state.num_tr[i].routed_edges.capacity()) {
+          if (m + l > succ_state.num_tr[i].routed_edges.size()) {
             succ_state.num_tr[i].routed_edges.resize(m + l);
           }
-          if (l > succ_state.num_tr[i].routed_edges_current.capacity()) {
+          if (l > succ_state.num_tr[i].routed_edges_current.size()) {
             succ_state.num_tr[i].routed_edges_current.resize(l);
           }
-          // TODO: get_edge()?
           succ_state.num_tr[i].routed_edges[m + k] = paths[j][k]; // store the edge travelling
           succ_state.num_tr[i].routed_edges_current[k] = paths[j][k]; // store the edge travelling current to succ_state
 
@@ -278,8 +284,10 @@ public:
             remain_time -= network.get_edge(paths[j][k]).length / tr_list.get_train(i).max_speed;
             if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
               succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
-              succ_state.num_tr[i].current_pos = tr_list.get_train(i).max_speed * remain_time;
+              succ_state.num_tr[i].current_pos = tr_list.get_train(i).max_speed * (remain_time + network.get_edge(paths[j][k]).length / network.get_edge(paths[j][k]).max_speed);;
               // current_pos = speed * remain_time
+              succ_state.num_tr[i].routed_edges.resize(m+k+1);
+              succ_state.num_tr[i].routed_edges_current.resize(k+1); // resize routed_edges and _current to delete unused array
               goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
             }
           }
@@ -287,22 +295,31 @@ public:
             remain_time -= network.get_edge(paths[j][k]).length / network.get_edge(paths[j][k]).max_speed;
             if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
               succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
-              succ_state.num_tr[i].current_pos = network.get_edge(paths[j][k]).max_speed * remain_time;
-              // current_pos = speed * remain_time
+              succ_state.num_tr[i].current_pos = network.get_edge(paths[j][k]).max_speed * (remain_time + network.get_edge(paths[j][k]).length / network.get_edge(paths[j][k]).max_speed);
+              // current_pos = speed * remain_time: remain_time from the last edge
+              succ_state.num_tr[i].routed_edges.resize(m+k+1);
+              succ_state.num_tr[i].routed_edges_current.resize(k+1); // resize routed_edges and _current to delete unused array
               goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
             }
           }
         }
         label: // skipped
         remain_time = tr_state.delta_t; //initialise again for next for-schleife
-        next_states[j] = succ_state;
-
+        for (size_t n = 0; n <= j; ++n) { // if routed_edges and _current already matches with other candidates
+          if (paths_sorted_with_num_tr[i][n].routed_edges == succ_state.num_tr[i].routed_edges) {
+            // the found path is already investigated. Do not copy to paths_sorted_with_num_tr
+            break;
+          }
+          if (n == j) {
+            paths_sorted_with_num_tr[i][j] = succ_state.num_tr[i]; // copy routed_edges and _current
+          }
+        }
         // succ_state.clear();
         succ_state = tr_state; // reset the succ_state to default; since clear() doesnot work for struct
-        // TODO: Check push_back function: not needed anymore? 9.19
       }
+      // TODO: delete the empty element from paths_sorted_with_num_tr: it is empty in case of two same routed_edges.
+      // Delete here, so that the shift in data only comes here
     }
-
     return next_states;
   }
 
