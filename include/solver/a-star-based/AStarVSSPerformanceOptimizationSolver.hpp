@@ -173,7 +173,7 @@ public:
     const TrainList& tr_list = instance.get_train_list();
 
     tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
-    tr_state.t += tr_state.delta_t; // TODO: IS IT HERE? NOT AFTER EXAMINED?
+    tr_state.t += tr_state.delta_t;
 
     std::vector<TrainState> next_states = successors(tr_state); // set of next states
     std::vector<TrainState> next_states_valid; // list of valid next states
@@ -194,7 +194,6 @@ public:
       }
       prev_states[tr_state.t] = next_states_valid; // copy the valid states to prev_states[t]
       return true;
-      // TODO: check size() or capacity()
     }
     return false;
   }
@@ -208,9 +207,9 @@ public:
     double h = 0; // heuristic wert
     double d = 0; // distance
     // TODO: check on Monday, has_edge returns me true but shortest_path gives me error back
-    bool check_has_edge = network.has_edge(tr_state.num_tr[0].current_edge);
+    /*bool check_has_edge = network.has_edge(tr_state.num_tr[0].current_edge);
     std::optional<double> check_shortest_path = network.shortest_path(tr_state.num_tr[2].current_edge, tr_state.num_tr[2].exit_vertex);
-
+*/
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
       //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
 
@@ -228,10 +227,8 @@ public:
       else { // no valid path exists
         return false;
       }
-
     }
     return h;  // total h
-              // TODO:evtl use h[i] and add together at the end?
   }
 
   double cost(TrainState& tr_state) {
@@ -320,6 +317,8 @@ public:
       // TODO: delete the empty element from paths_sorted_with_num_tr: it is empty in case of two same routed_edges.
       // Delete here, so that the shift in data only comes here
     }
+    // TODO: copy paths_sorted to next_states: be careful with all the combinations
+    // evtl discuss with Stefan
     return next_states;
   }
 
@@ -329,7 +328,6 @@ public:
     // TrainList is defined in train.hpp line 33
     /* TODO: EXPLANATION. this fkt is called ONLY when theyre in the same edge (dh going to same direction)
          * so, no need to refer on other direction calculation! */
-
 
     // TODO: find() does not give iterator back?
     // .size()=1:startend. nth_path = 0 :start(stst OR stend). nth_path = size()-1: end(enend OR stend)

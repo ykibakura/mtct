@@ -21,7 +21,8 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 15.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
 
   // solver.update_state(state);  // Use an object to call the member function
-  solver.initial_state(state);
+  solver.initial_state(state); // initiate the trains
+
   EXPECT_EQ(expected_number_of_trains, solver.get_instance().get_train_list().size());
   EXPECT_EQ(expected_number_of_edges, solver.get_instance().const_n().number_of_edges());
   EXPECT_EQ(expected_number_of_trains, state.num_tr.size());
@@ -53,7 +54,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
 TEST(AStarVSSPerformanceOptimizationSolverTest, SuccessorTest) {
   AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 20.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
-
+  solver.initial_state(state);
   std::vector<AStarVSSPerformanceOptimizationSolver::TrainState> next_states = solver.successors(state);
 
 }
