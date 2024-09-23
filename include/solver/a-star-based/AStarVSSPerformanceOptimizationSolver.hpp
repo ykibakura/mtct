@@ -169,8 +169,6 @@ public:
 
   bool update_state(TrainState& tr_state) {
     // 1.find successors 2.check collision,vss 3.check cost
-    const Network& network = instance.const_n();
-    const TrainList& tr_list = instance.get_train_list();
 
     tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
     tr_state.t += tr_state.delta_t;
@@ -179,7 +177,7 @@ public:
     std::vector<TrainState> next_states_valid; // list of valid next states
 
     for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
-      if (pos_collision_check(next_states[i]) == 0) { // no collision
+      if (pos_collision_check(next_states[i])) { // no collision
         next_states[i].cost = cost(next_states[i]);
         next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
@@ -239,7 +237,6 @@ public:
   std::vector<TrainState> successors(TrainState& tr_state) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
-    std::vector<std::vector<size_t>> paths_example = network.all_paths_of_length_starting_in_edge(0,83.33*90+0,4);
 
     TrainState succ_state = tr_state; // next state candidate: if valid successor->copied to next_states.
     // as a default value; copy tr_state to succ_state to edit
@@ -331,6 +328,7 @@ public:
     return next_states;
   }
 
+
   int collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
     // used in pot_collision_check
     // when two trains are in the same TDD, then it has to be checked if they collide
@@ -353,7 +351,7 @@ public:
         return 0; // collision
       }
     }
-
+    // TODO: Mo 23.9 Ende: the case Im looking rn is stst&stst with tr0&tr2 identical. How is it considered here?
     if (tr1_nth_path == 0 && tr2_nth_path == 0) {
       // tr1 and tr2 both starts from this edge_idx: bedingung für 2. (stend-stst & stend-stend combi)
       if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.size() - 1) {
@@ -392,6 +390,7 @@ public:
     // tr1 vorne, tr2 hinten
     // TODO: prev_pos?
     double front_end = tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length;
+    // TODO: if prev_pos = 0? then
     double back_start = tr_state.num_tr[tr2].current_pos;
 
     if (tr_state.edge_vss[edge_idx].size() == 0) { // no vss implemented on edge_idx. Bedingung 1.
@@ -426,7 +425,7 @@ public:
         // i,j: two trains' index
         if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].current_edge, tr_state.num_tr[j].current_edge) == 1 || tr_state.num_tr[i].current_edge == network.get_reverse_edge_index(tr_state.num_tr[j].current_edge)) {
           // theyre in an unbreakable section OR theyre in the same section going other way
-          return true; // two trains cannot be in unbreakable section. not valid successor. (break)
+          return false; // two trains cannot be in unbreakable section. not valid successor. (break)
         }
         else { // theyre not in unbreakable edge
           for (size_t k = 0; k < tr_state.num_tr[i].routed_edges_current.size(); ++k){ // going for every edge in a path
@@ -435,12 +434,12 @@ public:
                 // if same edge index found; d.h. if they go through the same edge
                 if ((k != 0 && k != tr_state.num_tr[i].routed_edges_current.size()) || (l != 0 && l != tr_state.num_tr[j].routed_edges_current.size())) {
                   // m and n are not start or end edge
-                  return true; // not valid successor
+                  return false; // not valid successor
                 }
                 else {
                   size_t common_edge = tr_state.num_tr[i].routed_edges_current[k];
                   if (collision_vss_check(tr_state, i, j, common_edge) == 0) { // if collision happening
-                    return true; // collision detected. not valid successor
+                    return false; // collision detected. not valid successor
                   }
                   if (collision_vss_check(tr_state, i, j, common_edge) == 1) {
                     insert_new_vss(tr_state, i, j, common_edge); // TDD section
@@ -452,7 +451,7 @@ public:
         }
       }
     }
-    return false; // When no collision: add VSS is needed, then return false
+    return true; // When no collision
   }
 
   void insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
