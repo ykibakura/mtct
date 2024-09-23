@@ -311,15 +311,12 @@ public:
           }
         }
         // succ_state.clear();
-
         succ_state = tr_state; // reset the succ_state to default; since clear() doesnot work for struct
       }
       // TODO: delete the empty element from paths_sorted_with_num_tr: it is empty in case of two same routed_edges.
       // Delete here, so that the shift in data only comes here
       next_states_counter *= path_copied_counter[i]; // mutiply the next path candidate for every num_tr
     }
-    // TODO: copy paths_sorted to next_states: be careful with all the combinations
-    // evtl discuss with Stefan
     std::vector<TrainState> next_states(next_states_counter, succ_state); // list of valid next states
     for (size_t o = 0; o < next_states_counter; ++o) { // for every possible path o
       size_t p = 1;
