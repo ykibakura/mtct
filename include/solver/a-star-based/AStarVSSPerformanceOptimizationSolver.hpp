@@ -239,25 +239,23 @@ public:
   std::vector<TrainState> successors(TrainState& tr_state) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
+    std::vector<std::vector<size_t>> paths_example = network.all_paths_of_length_starting_in_edge(0,83.33*90+0,4);
 
-    std::vector<TrainState> next_states = std::vector<TrainState>(100); // list of valid next states, size 100 predefined
-    // https://stackoverflow.com/questions/10559283/how-to-create-a-vector-of-user-defined-size-but-with-no-predefined-values
     TrainState succ_state = tr_state; // next state candidate: if valid successor->copied to next_states.
     // as a default value; copy tr_state to succ_state to edit
     std::vector<std::vector<Properties>> paths_sorted_with_num_tr = std::vector<std::vector<Properties>>(tr_state.num_tr.size());
     // paths_sorted_with_num_tr[i][n] with i=num_tr, n for each paths
+    // https://stackoverflow.com/questions/10559283/how-to-create-a-vector-of-user-defined-size-but-with-no-predefined-values
+
     double remain_time = tr_state.delta_t;
     std::vector<size_t> path_copied_counter(tr_state.num_tr.size(), 0);
-    size_t next_states_counter = 0;
+    size_t next_states_counter = 1;
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // for each trains
       // for all trains, they move to next point by the max speed
-      std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.delta_t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_edge);
+      std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.delta_t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_vertex);
       // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
 
-      if (next_states.size() < paths.size()) { // resize if next_states doesnot have enough size
-        next_states.resize(paths.size());
-      }
       for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
         size_t l = paths[j].size();
         paths_sorted_with_num_tr[i].resize(paths.size()); // resize to no. path available
@@ -310,23 +308,29 @@ public:
           if (n == j) {
             paths_sorted_with_num_tr[i][j] = succ_state.num_tr[i]; // copy routed_edges and _current
             path_copied_counter[i]++;
-            next_states_counter++;
           }
         }
         // succ_state.clear();
+
         succ_state = tr_state; // reset the succ_state to default; since clear() doesnot work for struct
       }
       // TODO: delete the empty element from paths_sorted_with_num_tr: it is empty in case of two same routed_edges.
       // Delete here, so that the shift in data only comes here
+      next_states_counter *= path_copied_counter[i]; // mutiply the next path candidate for every num_tr
     }
     // TODO: copy paths_sorted to next_states: be careful with all the combinations
     // evtl discuss with Stefan
-    next_states.resize(next_states_counter);
-    /*for (size_t o = 0; o < tr_state.num_tr.size(); ++o) { // num_tr o
-      switch (o) {
-      case 0:
+    std::vector<TrainState> next_states(next_states_counter, succ_state); // list of valid next states
+    for (size_t o = 0; o < next_states_counter; ++o) { // for every possible path o
+      size_t p = 1;
+      size_t q = 1;
+      for (size_t i = 0; i < tr_state.num_tr.size(); ++i) {
+        q *= path_copied_counter[i];
+        size_t write_nth_path = (o / p) % q;
+        next_states[o].num_tr[i] = paths_sorted_with_num_tr[i][write_nth_path];
+        p *= path_copied_counter[i];
       }
-    }*/
+    }
     return next_states;
   }
 
