@@ -79,7 +79,7 @@ public:
     // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
   };
 
-  std::vector<std::vector<TrainState>> prev_states; // List of previous states
+  std::vector<std::vector<TrainState>> prev_states = std::vector<std::vector<TrainState>>(100); // List of previous states
 
 
   bool solve(TrainState& initial_state) {
@@ -143,9 +143,9 @@ public:
     tr_state.cost = heuristic(tr_state);  // Calculate the heuristic cost
     // TODO: check heuristic
     tr_state.edge_vss.resize(network.number_of_edges());  // Resize edge_vss to match the number of edges
-    tr_state.edge_vss.clear();  // Clear any existing VSS information
+    tr_state.edge_vss.empty();  // Clear any existing VSS information
 
-    prev_states[0].clear();  // Clear any existing initial states at t=0
+    prev_states[0].empty();  // Clear any existing initial states at t=0
     prev_states[0].push_back(tr_state);  // Add the initial state to prev_states at t=0
   }
 
@@ -207,9 +207,7 @@ public:
     double h = 0; // heuristic wert
     double d = 0; // distance
     // TODO: check on Monday, has_edge returns me true but shortest_path gives me error back
-    /*bool check_has_edge = network.has_edge(tr_state.num_tr[0].current_edge);
-    std::optional<double> check_shortest_path = network.shortest_path(tr_state.num_tr[2].current_edge, tr_state.num_tr[2].exit_vertex);
-*/
+
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
       //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
 
@@ -249,6 +247,8 @@ public:
     std::vector<std::vector<Properties>> paths_sorted_with_num_tr = std::vector<std::vector<Properties>>(tr_state.num_tr.size());
     // paths_sorted_with_num_tr[i][n] with i=num_tr, n for each paths
     double remain_time = tr_state.delta_t;
+    std::vector<size_t> path_copied_counter(tr_state.num_tr.size(), 0);
+    size_t next_states_counter = 0;
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // for each trains
       // for all trains, they move to next point by the max speed
@@ -309,6 +309,8 @@ public:
           }
           if (n == j) {
             paths_sorted_with_num_tr[i][j] = succ_state.num_tr[i]; // copy routed_edges and _current
+            path_copied_counter[i]++;
+            next_states_counter++;
           }
         }
         // succ_state.clear();
@@ -319,6 +321,12 @@ public:
     }
     // TODO: copy paths_sorted to next_states: be careful with all the combinations
     // evtl discuss with Stefan
+    next_states.resize(next_states_counter);
+    /*for (size_t o = 0; o < tr_state.num_tr.size(); ++o) { // num_tr o
+      switch (o) {
+      case 0:
+      }
+    }*/
     return next_states;
   }
 
