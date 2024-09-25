@@ -248,6 +248,7 @@ public:
     std::vector<size_t> path_copied_counter(tr_state.num_tr.size(), 0);
     size_t next_states_counter = 1;
 
+    // TODO: implement the time: like if (tr_state.t >= schedule.v_0) oder so?
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // for each trains
       // for all trains, they move to next point by the max speed
       std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.delta_t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_vertex);
@@ -343,7 +344,7 @@ public:
     // https://stackoverflow.com/questions/6136362/convert-iterator-to-int : begin() & end() gives iterator back
     // trX_nth_path: edge is n-th: needs to be either 0 OR .size()
 
-    if (tr_state.num_tr[tr1].routed_edges_current.size() == 1 && tr_state.num_tr[tr2].routed_edges_current.size() == 1) {
+    if (tr_state.num_tr[tr1].routed_edges_current.size() != 1 && tr_state.num_tr[tr2].routed_edges_current.size() != 1) {
       // for except startend & startend;
       // if ((tr1_nth_path == 0 && tr2_nth_path == 0) || (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.end() && tr2_nth_path == tr_state.num_tr[tr2].routed_edges_current.end())) {
       if ((tr1_nth_path == 0 && tr2_nth_path == 0) || (tr1_nth_path == tr_state.num_tr[tr1].routed_edges_current.size() - 1 && tr2_nth_path == tr_state.num_tr[tr2].routed_edges_current.size() - 1)) {

@@ -62,7 +62,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, SuccessorTest) {
 TEST(AStarVSSPerformanceOptimizationSolverTest, UpdateStateTest) {
   size_t expected_number_of_counter = 3;
 
-  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/Stammstrecke16Trains");
+  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 30.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
   solver.initial_state(state);
   solver.update_state(state);
