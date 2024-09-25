@@ -170,11 +170,11 @@ public:
   bool update_state(TrainState& tr_state) {
     // 1.find successors 2.check collision,vss 3.check cost
 
-    tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
-    tr_state.t += tr_state.delta_t;
-
     std::vector<TrainState> next_states = successors(tr_state); // set of next states
     std::vector<TrainState> next_states_valid; // list of valid next states
+
+    tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
+    tr_state.t += tr_state.delta_t;
 
     for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
       if (pos_collision_check(next_states[i])) { // no collision
@@ -183,14 +183,14 @@ public:
       }
     }
 
-    if (!next_states_valid.empty()) {
+    if (!next_states_valid.empty()) { // Anmerkung: tr_state.t is already updated.
       if (prev_states.size() <= tr_state.t / tr_state.delta_t) { // Bsp 15s with 0,5,10,15: size()<=3:add
         prev_states.resize(tr_state.t / tr_state.delta_t + 1); // Resize prev_states
       }
-      if (prev_states[tr_state.t].size() < next_states_valid.size()) { // if less size than next states valid
-        prev_states[tr_state.t].resize(next_states_valid.size() + 1); // Resize prev_states
+      if (prev_states[tr_state.t / tr_state.delta_t].size() < next_states_valid.size()) { // if less size than next states valid
+        prev_states[tr_state.t / tr_state.delta_t].resize(next_states_valid.size() + 1); // Resize prev_states
       }
-      prev_states[tr_state.t] = next_states_valid; // copy the valid states to prev_states[t]
+      prev_states[tr_state.t / tr_state.delta_t] = next_states_valid; // copy the valid states to prev_states[t]
       return true;
     }
     return false;
@@ -248,82 +248,115 @@ public:
     std::vector<size_t> path_copied_counter(tr_state.num_tr.size(), 0);
     size_t next_states_counter = 1;
 
-    // TODO: implement the time: like if (tr_state.t >= schedule.v_0) oder so?
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // for each trains
-      // for all trains, they move to next point by the max speed
-      std::vector<std::vector<size_t>> paths = network.all_paths_of_length_starting_in_edge(tr_state.num_tr[i].current_edge, tr_list.get_train(i).max_speed * tr_state.delta_t + tr_state.num_tr[i].current_pos, tr_state.num_tr[i].exit_vertex);
-      // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
+      // if t_0 is not reached: train stays at the initial point
+      if (tr_state.t >= instance.get_schedule(i).get_t_0()) {
+        std::vector<std::vector<size_t>> paths =
+            network.all_paths_of_length_starting_in_edge(
+                tr_state.num_tr[i].current_edge,
+                tr_list.get_train(i).max_speed * tr_state.delta_t +
+                    tr_state.num_tr[i].current_pos,
+                tr_state.num_tr[i].exit_vertex);
+        // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
 
-      for (size_t j = 0; j < paths.size(); ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
-        size_t l = paths[j].size();
-        paths_sorted_with_num_tr[i].resize(paths.size()); // resize to no. path available
-        succ_state = tr_state; // copy tr_state to succ_state to edit
-        succ_state.num_tr[i].prev_pos = tr_state.num_tr[i].current_pos; // update the starting position as prev position
-        succ_state.num_tr[i].routed_edges_current.clear();
-        size_t m = succ_state.num_tr[i].routed_edges.size();
+        for (size_t j = 0; j < paths.size();
+             ++j) { // [j] shows for each possible path. j is index for new_state[j].num_tr...
+          size_t l = paths[j].size();
+          paths_sorted_with_num_tr[i].resize(
+              paths.size());     // resize to no. path available
+          succ_state = tr_state; // copy tr_state to succ_state to edit
+          succ_state.num_tr[i].prev_pos =
+              tr_state.num_tr[i]
+                  .current_pos; // update the starting position as prev position
+          succ_state.num_tr[i].routed_edges_current.clear();
+          size_t m = succ_state.num_tr[i].routed_edges.size();
 
-        for (size_t k = 0; k < l; ++k) { // looking at every possible path: for each Kantenindex:0-(l-1). k=edgeindex
-          if (m + l > succ_state.num_tr[i].routed_edges.size()) {
-            succ_state.num_tr[i].routed_edges.resize(m + l);
-          }
-          if (l > succ_state.num_tr[i].routed_edges_current.size()) {
-            succ_state.num_tr[i].routed_edges_current.resize(l);
-          }
-          succ_state.num_tr[i].routed_edges[m + k] = paths[j][k]; // store the edge travelling
-          succ_state.num_tr[i].routed_edges_current[k] = paths[j][k]; // store the edge travelling current to succ_state
+          for (size_t k = 0; k < l;
+               ++k) { // looking at every possible path: for each Kantenindex:0-(l-1). k=edgeindex
+            if (m + l > succ_state.num_tr[i].routed_edges.size()) {
+              succ_state.num_tr[i].routed_edges.resize(m + l);
+            }
+            if (l > succ_state.num_tr[i].routed_edges_current.size()) {
+              succ_state.num_tr[i].routed_edges_current.resize(l);
+            }
+            succ_state.num_tr[i].routed_edges[m + k] =
+                paths[j][k]; // store the edge travelling
+            succ_state.num_tr[i].routed_edges_current[k] =
+                paths[j][k]; // store the edge travelling current to succ_state
 
-          if (tr_list.get_train(i).max_speed <= network.get_edge(k).max_speed) {
-            // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
-            remain_time -= network.get_edge(paths[j][k]).length / tr_list.get_train(i).max_speed;
-            if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
-              succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
-              succ_state.num_tr[i].current_pos = tr_list.get_train(i).max_speed * (remain_time + network.get_edge(paths[j][k]).length / network.get_edge(paths[j][k]).max_speed);;
-              // current_pos = speed * remain_time
-              succ_state.num_tr[i].routed_edges.resize(m+k+1);
-              succ_state.num_tr[i].routed_edges_current.resize(k+1); // resize routed_edges and _current to delete unused array
-              goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
+            if (tr_list.get_train(i).max_speed <=
+                network.get_edge(k).max_speed) {
+              // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
+              remain_time -= network.get_edge(paths[j][k]).length /
+                             tr_list.get_train(i).max_speed;
+              if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
+                succ_state.num_tr[i].current_edge =
+                    paths[j][k]; // train is at this edge[k]
+                succ_state.num_tr[i].current_pos =
+                    tr_list.get_train(i).max_speed *
+                    (remain_time + network.get_edge(paths[j][k]).length /
+                                       network.get_edge(paths[j][k]).max_speed);
+                ;
+                // current_pos = speed * remain_time
+                succ_state.num_tr[i].routed_edges.resize(m + k + 1);
+                succ_state.num_tr[i].routed_edges_current.resize(
+                    k + 1); // resize routed_edges and _current to delete unused array
+                goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
+              }
+            } else {
+              remain_time -= network.get_edge(paths[j][k]).length /
+                             network.get_edge(paths[j][k]).max_speed;
+              if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
+                succ_state.num_tr[i].current_edge =
+                    paths[j][k]; // train is at this edge[k]
+                succ_state.num_tr[i].current_pos =
+                    network.get_edge(paths[j][k]).max_speed *
+                    (remain_time + network.get_edge(paths[j][k]).length /
+                                       network.get_edge(paths[j][k]).max_speed);
+                // current_pos = speed * remain_time: remain_time from the last edge
+                succ_state.num_tr[i].routed_edges.resize(m + k + 1);
+                succ_state.num_tr[i].routed_edges_current.resize(
+                    k + 1); // resize routed_edges and _current to delete unused array
+                goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
+              }
             }
           }
-          else {
-            remain_time -= network.get_edge(paths[j][k]).length / network.get_edge(paths[j][k]).max_speed;
-            if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
-              succ_state.num_tr[i].current_edge = paths[j][k]; // train is at this edge[k]
-              succ_state.num_tr[i].current_pos = network.get_edge(paths[j][k]).max_speed * (remain_time + network.get_edge(paths[j][k]).length / network.get_edge(paths[j][k]).max_speed);
-              // current_pos = speed * remain_time: remain_time from the last edge
-              succ_state.num_tr[i].routed_edges.resize(m+k+1);
-              succ_state.num_tr[i].routed_edges_current.resize(k+1); // resize routed_edges and _current to delete unused array
-              goto label; // Skip the entire "for (size_t k = 0; k < l; ++k)"
-            }
-          }
-        }
         label: // skipped
-        remain_time = tr_state.delta_t; //initialise again for next for-schleife
-        for (size_t n = 0; n <= j; ++n) { // if routed_edges and _current already matches with other candidates
-          if (paths_sorted_with_num_tr[i][n].routed_edges == succ_state.num_tr[i].routed_edges) {
-            // the found path is already investigated. Do not copy to paths_sorted_with_num_tr
-            break;
+          remain_time =
+              tr_state.delta_t; // initialise again for next for-schleife
+          for (size_t n = 0; n <= j;
+               ++n) { // if routed_edges and _current already matches with other candidates
+            if (paths_sorted_with_num_tr[i][n].routed_edges ==
+                succ_state.num_tr[i].routed_edges) {
+              // the found path is already investigated. Do not copy to paths_sorted_with_num_tr
+              break;
+            }
+            if (n == j) {
+              paths_sorted_with_num_tr[i][j] =
+                  succ_state.num_tr[i]; // copy routed_edges and _current
+              path_copied_counter[i]++;
+            }
           }
-          if (n == j) {
-            paths_sorted_with_num_tr[i][j] = succ_state.num_tr[i]; // copy routed_edges and _current
-            path_copied_counter[i]++;
-          }
+          // succ_state.clear();
+          succ_state = tr_state; // reset the succ_state to default; since clear() doesnot work for struct
         }
-        // succ_state.clear();
-        succ_state = tr_state; // reset the succ_state to default; since clear() doesnot work for struct
+        // TODO: delete the empty element from paths_sorted_with_num_tr: it is empty in case of two same routed_edges. Delete here, so that the shift in data only comes here
+        next_states_counter *=
+            path_copied_counter[i]; // mutiply the next path candidate for every num_tr
       }
-      // TODO: delete the empty element from paths_sorted_with_num_tr: it is empty in case of two same routed_edges.
-      // Delete here, so that the shift in data only comes here
-      next_states_counter *= path_copied_counter[i]; // mutiply the next path candidate for every num_tr
     }
     std::vector<TrainState> next_states(next_states_counter, succ_state); // list of valid next states
     for (size_t o = 0; o < next_states_counter; ++o) { // for every possible path o
       size_t p = 1;
       size_t q = 1;
       for (size_t i = 0; i < tr_state.num_tr.size(); ++i) {
-        q *= path_copied_counter[i];
-        size_t write_nth_path = (o / p) % q;
-        next_states[o].num_tr[i] = paths_sorted_with_num_tr[i][write_nth_path];
-        p *= path_copied_counter[i];
+        if (tr_state.t >= instance.get_schedule(i).get_t_0()) {
+          q *= path_copied_counter[i];
+          size_t write_nth_path = (o / p) % q;
+          next_states[o].num_tr[i] =
+              paths_sorted_with_num_tr[i][write_nth_path];
+          p *= path_copied_counter[i];
+        }
       }
     }
     return next_states;
