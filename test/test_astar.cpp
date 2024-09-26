@@ -70,8 +70,13 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, UpdateStateTest) {
   EXPECT_EQ(1, state.counter);
   EXPECT_EQ(30.0, state.t);
 
+}
 
-
+TEST(AStarVSSPerformanceOptimizationSolverTest, SolverTest) {
+  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleNetwork");
+  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 30.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
+  solver.initial_state(state);
+  solver.solve(state);
 }
 
 

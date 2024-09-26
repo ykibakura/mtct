@@ -95,15 +95,15 @@ public:
       auto [time, index] = state_index;
       pq.pop();
 
-      TrainState current_state = prev_states[time][index]; // the state which its successor will be examined
+      TrainState current_state = prev_states[time / initial_state.delta_t][index]; // the state which its successor will be examined
 
       if (goal_state(current_state)) {
         return true; // goal reached. TODO: evtl return the trainstate itself?
       }
       else if (update_state(current_state)) {
         // theres 1+ successor.
-        for (size_t i = 0; i < prev_states[current_state.t].size(); ++i) {
-          pq.emplace(std::make_pair(prev_states[current_state.t][i].cost, std::make_pair(current_state.t + current_state.delta_t, i)));
+        for (size_t i = 0; i < prev_states[current_state.t / current_state.delta_t].size(); ++i) {
+          pq.emplace(std::make_pair(prev_states[current_state.t / current_state.delta_t][i].cost, std::make_pair(current_state.t, i)));
           // push the new prev_states to pq
         }
       } // do pq for next step
@@ -179,6 +179,8 @@ public:
     for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
       if (pos_collision_check(next_states[i])) { // no collision
         next_states[i].cost = cost(next_states[i]);
+        next_states[i].t += next_states[i].delta_t;
+        next_states[i].counter++;
         next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
     }
@@ -191,6 +193,7 @@ public:
         prev_states[tr_state.t / tr_state.delta_t].resize(next_states_valid.size() + 1); // Resize prev_states
       }
       prev_states[tr_state.t / tr_state.delta_t] = next_states_valid; // copy the valid states to prev_states[t]
+
       return true;
     }
     return false;
@@ -294,7 +297,7 @@ public:
                     paths[j][k]; // train is at this edge[k]
                 succ_state.num_tr[i].current_pos =
                     tr_list.get_train(i).max_speed *
-                    (remain_time + network.get_edge(paths[j][k]).length /
+                    ((remain_time + network.get_edge(paths[j][k]).length) /
                                        network.get_edge(paths[j][k]).max_speed);
                 ;
                 // current_pos = speed * remain_time
@@ -311,7 +314,7 @@ public:
                     paths[j][k]; // train is at this edge[k]
                 succ_state.num_tr[i].current_pos =
                     network.get_edge(paths[j][k]).max_speed *
-                    (remain_time + network.get_edge(paths[j][k]).length /
+                    ((remain_time + network.get_edge(paths[j][k]).length) /
                                        network.get_edge(paths[j][k]).max_speed);
                 // current_pos = speed * remain_time: remain_time from the last edge
                 succ_state.num_tr[i].routed_edges.resize(m + k + 1);
