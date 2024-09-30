@@ -53,9 +53,22 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, InitialStateTest) {
 
 TEST(AStarVSSPerformanceOptimizationSolverTest, SuccessorTest) {
   AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
-  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 20.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
+  AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 30.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
   solver.initial_state(state);
   std::vector<AStarVSSPerformanceOptimizationSolver::TrainState> next_states = solver.successors(state);
+
+  // EXPECT_EQ(next_states[1].t, 30);
+  // EXPECT_EQ(next_states[1].counter, 1);
+  // t, counter will be updated in update_state().
+  EXPECT_GE(next_states[1].cost, 178.35563245423987);
+
+  //tr3: 20m/s*30s=600m, edge 8(500m)->10(5m)->12(5m)->17(300m,at90m)
+  EXPECT_EQ(next_states[1].num_tr[2].routed_edges[0], 8);
+  EXPECT_EQ(next_states[1].num_tr[2].routed_edges[1], 10);
+  EXPECT_EQ(next_states[1].num_tr[2].routed_edges[2], 12);
+  EXPECT_EQ(next_states[1].num_tr[2].routed_edges[3], 17);
+  EXPECT_EQ(next_states[1].num_tr[2].current_edge, 17);
+  EXPECT_EQ(next_states[1].num_tr[2].current_pos, 90);
 
 }
 // UpdateState test

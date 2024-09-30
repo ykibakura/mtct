@@ -181,9 +181,9 @@ public:
 
     for (size_t i = 0; i < next_states.size(); ++i) { // for loop for every path
       if (pos_collision_check(next_states[i])) { // no collision
-        next_states[i].cost = cost(next_states[i]);
         next_states[i].t += next_states[i].delta_t;
         next_states[i].counter++;
+        next_states[i].cost = cost(next_states[i]);
         next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
     }
@@ -317,9 +317,8 @@ public:
                   succ_state.num_tr[i].current_edge =
                       paths[j][k]; // train is at this edge[k]
                   succ_state.num_tr[i].current_pos =
-                      tr_list.get_train(i).max_speed *
-                      ((remain_time + network.get_edge(paths[j][k]).length) /
-                       network.get_edge(paths[j][k]).max_speed);
+                      network.get_edge(paths[j][k]).length - (tr_list.get_train(i).max_speed *
+                      (-remain_time));
                   // current_pos = speed * remain_time
                   succ_state.num_tr[i].routed_edges.resize(m + k + 1);
                   succ_state.num_tr[i].routed_edges_current.resize(
@@ -341,10 +340,9 @@ public:
                   succ_state.num_tr[i].current_edge =
                       paths[j][k]; // train is at this edge[k]
                   succ_state.num_tr[i].current_pos =
-                      network.get_edge(paths[j][k]).max_speed *
-                      ((remain_time + network.get_edge(paths[j][k]).length) /
-                       network.get_edge(paths[j][k]).max_speed);
-                  // current_pos = speed * remain_time: remain_time from the last edge
+                      network.get_edge(paths[j][k]).length - (network.get_edge(paths[j][k]).max_speed *
+                                                              (-remain_time));
+                  // current_pos = total_length - speed * remain_time: remain_time from the last edge
                   succ_state.num_tr[i].routed_edges.resize(m + k + 1);
                   succ_state.num_tr[i].routed_edges_current.resize(
                       k + 1); // resize routed_edges and _current to delete unused array
