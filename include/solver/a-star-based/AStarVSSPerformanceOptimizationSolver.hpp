@@ -134,7 +134,7 @@ public:
     prev_states[0].empty();  // Clear any existing initial states at t=0
     prev_states[0].push_back(tr_state);  // Add the initial state to prev_states at t=0
   }
-´
+
 
   bool goal_state(TrainState& tr_state) {
     const Network& network = instance.const_n();
