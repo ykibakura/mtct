@@ -278,7 +278,6 @@ public:
                     tr_state.num_tr[i].current_pos,
                 tr_state.num_tr[i].exit_vertex);
           }
-
           // get the vector of all routes from prev to current state, Bsp {{1,2,3},{1,2,4}}. **length: from pos0 of the edge!
 
           for (size_t j = 0; j < paths.size();
