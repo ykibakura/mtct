@@ -443,9 +443,9 @@ public:
 
 
   int two_tr_pos_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
+    // tr1 vorne, tr2 hinten
     const TrainList& tr_list = instance.get_train_list();
 
-    // tr1 vorne, tr2 hinten
     double front_end = tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length;
     // TODO: if prev_pos = 0? then
     double back_start = tr_state.num_tr[tr2].current_pos;
