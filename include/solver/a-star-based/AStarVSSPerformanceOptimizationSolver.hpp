@@ -546,7 +546,7 @@ public:
     return true; // When no collision
   }
 
-  void insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
+  bool insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
     // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
     // by stst: current_edge!=edge_idx. Then use prev_pos
     if (edge_idx != tr_state.num_tr[i].current_edge) {
@@ -559,10 +559,10 @@ public:
       new_vss_middle_of_edge(tr_state, i, tr_state.num_tr[i].current_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
     }
     std::sort(tr_state.edge_vss[edge_idx].begin(), tr_state.edge_vss[edge_idx].end()); // sort the new added vss
-    // return true;
+    return true;
   }
 
-  double new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
+  bool new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
 
@@ -599,7 +599,7 @@ public:
 
 
     else { // exists 1+ VSS in the edge
-      for (int i = 0; i <= tr_state.edge_vss[edge_idx].size(); ++i) { // go through every vss on edge_idx
+      for (int i = 0; i < tr_state.edge_vss[edge_idx].size() + 1; ++i) { // go through every vss on edge_idx
         double middle_point;
         if (i == 0) {
           middle_point = tr_state.edge_vss[edge_idx][i] / 2; // between position 0 and first vss
@@ -618,26 +618,32 @@ public:
             if (tr1_pos + tr_list.get_train(tr1).length > middle_point && tr2_pos < middle_point) {
               // if the middle point is between the trains
               tr_state.edge_vss[edge_idx].push_back(middle_point);
+              break;
             }
             else if (tr1_pos + tr_list.get_train(tr1).length > middle_point) {
               // two trains are past middle point
               tr_state.edge_vss[edge_idx].push_back(tr2_pos); // add VSS by the second train
+              break;
             }
             else { // two trains are before middle point
               tr_state.edge_vss[edge_idx].push_back(tr1_pos + tr_list.get_train(tr1).length); // add VSS by the first train
+              break;
             }
           }
           else if (i == tr_state.edge_vss[edge_idx].size()) {
             if (tr1_pos + tr_list.get_train(tr1).length > middle_point && tr2_pos < middle_point) {
               // if the middle point is between the trains
               tr_state.edge_vss[edge_idx].push_back(middle_point);
+              break;
             }
             else if (tr1_pos + tr_list.get_train(tr1).length > middle_point) {
               // two trains are past middle point
               tr_state.edge_vss[edge_idx].push_back(tr2_pos); // add VSS by the second train
+              break;
             }
             else { // two trains are before middle point
               tr_state.edge_vss[edge_idx].push_back(tr1_pos + tr_list.get_train(tr1).length); // add VSS by the first train
+              break;
             }
           }
         }
@@ -647,13 +653,16 @@ public:
             if (tr2_pos + tr_list.get_train(tr2).length > middle_point && tr1_pos < middle_point) {
               // if the middle point is between the trains
               tr_state.edge_vss[edge_idx].push_back(middle_point);
+              break;
             }
             else if (tr2_pos + tr_list.get_train(tr2).length > middle_point) {
               // two trains are past middle point
               tr_state.edge_vss[edge_idx].push_back(tr1_pos); // add VSS by the second train
+              break;
             }
             else { // two trains are before middle point
               tr_state.edge_vss[edge_idx].push_back(tr2_pos + tr_list.get_train(tr2).length); // add VSS by the first train
+              break;
             }
           }
           else if (i == tr_state.edge_vss[edge_idx].size()) {
@@ -661,19 +670,22 @@ public:
             if (tr2_pos + tr_list.get_train(tr2).length > middle_point && tr1_pos < middle_point) {
               // if the middle point is between the trains
               tr_state.edge_vss[edge_idx].push_back(middle_point);
+              break;
             }
             else if (tr2_pos + tr_list.get_train(tr2).length > middle_point) {
               // two trains are past middle point
               tr_state.edge_vss[edge_idx].push_back(tr1_pos); // add VSS by the second train
+              break;
             }
             else { // two trains are before middle point
               tr_state.edge_vss[edge_idx].push_back(tr2_pos + tr_list.get_train(tr2).length); // add VSS by the first train
+              break;
             }
           }
         }
       }
     }
-    return true; // TODO: Bool or Double?
+    return true;
   }
 
 instances::SolVSSGenerationTimetable solve(int time_limit, bool debug_input) override {return instances::SolVSSGenerationTimetable(instance, 15);};
