@@ -20,19 +20,6 @@ class AStarVSSPerformanceOptimizationSolver
 private:
   // Private struct and properties
 
-  /*
-  double heuristic(TrainState& tr_state);
-  double cost(TrainState& tr_state);
-  std::vector<TrainState> successors(TrainState& tr_state);
-  int collision_vss_check(TrainState& tr_state, int tr1, int tr2,
-                                              size_t edge_idx);
-  int two_tr_pos_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx);
-  bool pot_collision_check(TrainState& tr_state);
-  bool insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx);
-  bool new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos,
-                                                 int tr2, double tr2_pos, size_t edge_idx);
-  */
-
   struct Properties { // function of all the properties needed for tr_state etc
     std::vector<size_t> routed_edges;         // edges travelled
     std::vector<size_t> routed_edges_current; // edges travelled current state
@@ -48,13 +35,6 @@ private:
   };
 
 public:
-  // Public methods
-  /*
-  void initial_state(TrainState& tr_state);
-  bool goal_state(TrainState& tr_state);
-  bool update_state(TrainState& tr_state);
-  bool solve(TrainState& tr_state);
-   */
 
   explicit AStarVSSPerformanceOptimizationSolver(const std::string& instance_path) {
     instance = instances::VSSGenerationTimetable::import_instance(instance_path);
@@ -148,13 +128,13 @@ public:
     }
 
     tr_state.cost = heuristic(tr_state);  // Calculate the heuristic cost
-    // TODO: check heuristic
     tr_state.edge_vss.resize(network.number_of_edges());  // Resize edge_vss to match the number of edges
     tr_state.edge_vss.empty();  // Clear any existing VSS information
 
     prev_states[0].empty();  // Clear any existing initial states at t=0
     prev_states[0].push_back(tr_state);  // Add the initial state to prev_states at t=0
   }
+´
 
   bool goal_state(TrainState& tr_state) {
     const Network& network = instance.const_n();
@@ -174,6 +154,7 @@ public:
     }
     return true;
   }
+
 
   bool update_state(TrainState& tr_state) {
     // 1.find successors 2.check collision,vss 3.check cost
@@ -215,7 +196,6 @@ public:
 
     double h = 0; // heuristic wert
     double d = 0; // distance
-    // TODO: check on Monday, has_edge returns me true but shortest_path gives me error back
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // nächstmögliche Knoten,Länge bis da,Endknoten nötig!
       //const auto v_next = network.get_edge(edge).target; // Nächstmögliche Knoten
@@ -238,12 +218,14 @@ public:
     return h;  // total h
   }
 
+
   double cost(TrainState& tr_state) {
     double g; // SIGMA(g_index)
     g = tr_state.num_tr.size() * tr_state.t; // Cost till here=no.trains*time
 
     return g + heuristic(tr_state); // f=g+h
   }
+
 
   std::vector<TrainState> successors(TrainState& tr_state) {
     const Network& network = instance.const_n();
@@ -355,7 +337,6 @@ public:
                 } else if (paths[j][k] ==
                            tr_state.num_tr[i]
                                .exit_edge) { // tr is exit_edge & remain_time>0. Goal arrived
-                  // TODO: goal done.
                   succ_state.num_tr[i].current_edge = paths[j][k];
                   succ_state.num_tr[i].current_pos = network.get_edge(succ_state.num_tr[i].current_edge).length;
                   succ_state.num_tr[i].goal_reached = 1;
@@ -381,7 +362,6 @@ public:
             // succ_state.clear();
             succ_state = tr_state; // reset the succ_state to default; since clear() doesnot work for struct
           }
-          // TODO: delete the empty element from paths_sorted_with_num_tr: it is empty in case of two same routed_edges. Delete here, so that the shift in data only comes here
           next_states_counter *=
               path_copied_counter[i]; // mutiply the next path candidate for every num_tr
         }
@@ -414,7 +394,6 @@ public:
     /* TODO: EXPLANATION. this fkt is called ONLY when theyre in the same edge (dh going to same direction)
          * so, no need to refer on other direction calculation! */
 
-    // TODO: find() does not give iterator back?
     // .size()=1:startend. nth_path = 0 :start(stst OR stend). nth_path = size()-1: end(enend OR stend)
     int tr1_nth_path = std::distance(tr_state.num_tr[tr1].routed_edges_current.begin(), std::find(tr_state.num_tr[tr1].routed_edges_current.begin(), tr_state.num_tr[tr1].routed_edges_current.end(), edge_idx));
     int tr2_nth_path = std::distance(tr_state.num_tr[tr2].routed_edges_current.begin(), std::find(tr_state.num_tr[tr2].routed_edges_current.begin(), tr_state.num_tr[tr2].routed_edges_current.end(), edge_idx));
@@ -429,7 +408,7 @@ public:
         return 0; // collision
       }
     }
-    // TODO: Mo 23.9 Ende: the case Im looking rn is stst&stst with tr0&tr2 identical. How is it considered here?
+
     if (tr1_nth_path == 0 && tr2_nth_path == 0) {
       // tr1 and tr2 both starts from this edge_idx: bedingung für 2. (stend-stst & stend-stend combi)
       if (tr1_nth_path != tr_state.num_tr[tr1].routed_edges_current.size() - 1) {
@@ -462,11 +441,11 @@ public:
     }
   }
 
+
   int two_tr_pos_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
     const TrainList& tr_list = instance.get_train_list();
 
     // tr1 vorne, tr2 hinten
-    // TODO: prev_pos?
     double front_end = tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length;
     // TODO: if prev_pos = 0? then
     double back_start = tr_state.num_tr[tr2].current_pos;
@@ -497,6 +476,7 @@ public:
     }
   }
 
+
   bool ignore_collision(TrainState& tr_state, int tr1, int tr2) {
     if (tr_state.t <= instance.get_schedule(tr1).get_t_0() || tr_state.t <= instance.get_schedule(tr2).get_t_0() || tr_state.num_tr[tr1].goal_reached == 1 || tr_state.num_tr[tr2].goal_reached == 1) {
       // ignore if one train is not departed, or already reached goal
@@ -504,6 +484,7 @@ public:
     }
     return false; // do not ignore the collision. invalid
   }
+
 
   bool pos_collision_check(TrainState& tr_state) {
     const Network& network = instance.const_n();
@@ -546,6 +527,7 @@ public:
     return true; // When no collision
   }
 
+
   bool insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
     // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
     // by stst: current_edge!=edge_idx. Then use prev_pos
@@ -561,6 +543,7 @@ public:
     std::sort(tr_state.edge_vss[edge_idx].begin(), tr_state.edge_vss[edge_idx].end()); // sort the new added vss
     return true;
   }
+
 
   bool new_vss_middle_of_edge(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
     const Network& network = instance.const_n();
@@ -610,7 +593,6 @@ public:
         else {
           middle_point = (tr_state.edge_vss[edge_idx][i - 1] + tr_state.edge_vss[edge_idx][i]) / 2;
         }
-        // TODO: Fix this middle_section
 
         if (tr1_pos + tr_list.get_train(tr1).length > tr2_pos) { // if tr1 vorne, tr2 hinten
           double back_start = tr_state.num_tr[tr2].current_pos;
@@ -688,8 +670,8 @@ public:
     return true;
   }
 
-instances::SolVSSGenerationTimetable solve(int time_limit, bool debug_input) override {return instances::SolVSSGenerationTimetable(instance, 15);};
 
+instances::SolVSSGenerationTimetable solve(int time_limit, bool debug_input) override {return instances::SolVSSGenerationTimetable(instance, 15);};
 
 }; // class
 } // namespace cda_rail::solver::astar_based
