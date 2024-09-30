@@ -86,7 +86,7 @@ TEST(AStarVSSPerformanceOptimizationSolverTest, UpdateStateTest) {
 }
 
 TEST(AStarVSSPerformanceOptimizationSolverTest, SolverTest) {
-  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleStation");
+  AStarVSSPerformanceOptimizationSolver solver("/Users/yusuke/github/test/example-networks/SimpleNetwork");
   AStarVSSPerformanceOptimizationSolver::TrainState state(solver.get_instance().get_train_list().size(), 0.0, 30.0, 0, 0.0, solver.get_instance().const_n().number_of_edges());
   solver.initial_state(state);
   solver.solve(state);
