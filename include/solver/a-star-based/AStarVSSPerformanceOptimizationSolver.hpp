@@ -431,6 +431,7 @@ public:
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
     TrainState next_states_pos_adjusted = tr_state;
+    size_t counter = 0;
 
     if (tr_state.num_tr[i].routed_edges_current.size() == 1) {
       // the tr i position can/would not be moved.
@@ -446,7 +447,7 @@ public:
       }
     }
     if (tr_state.num_tr[j].routed_edges_current.size() == 1) {
-      // the tr i position can/would not be moved.
+      // the tr i position cannot be moved.
       for (size_t n = 0; n < tr_state.num_tr[i].routed_edges_current.size(); ++n) {
         if (network.get_predecessors(tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n]).size() > 1) {
           // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
@@ -459,19 +460,32 @@ public:
       }
     }
     else { // both train comes from other edge
-      for (size_t n = 0; n < tr_state.num_tr[i].routed_edges_current.size(); ++n) {
-        if (tr_list.get_train(i).max_speed >= tr_list.get_train(j).max_speed) {
-          // i is faster. move tr i
-          if (network.get_predecessors(tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n]).size() > 1) {
+      if (tr_list.get_train(i).max_speed >= tr_list.get_train(j).max_speed) {
+        // i is faster. move tr i
+        label_i:
+        for (size_t n = 1; n < tr_state.num_tr[i].routed_edges_current.size(); ++n) {
+          if (network.get_predecessors(tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-n]).size() > 1) {
             // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
-            next_states_pos_adjusted.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-2];
+            next_states_pos_adjusted.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-1];
             next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length - 0.001;
-            next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-2);
-            next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-2);
+            next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-1);
+            next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-1);
             return next_states_pos_adjusted;
           }
+          else {
+            if (n == tr_state.num_tr[i].routed_edges_current.size() - 1) { //letzte
+              // for tr i: there was no prev_edge with 2+ branches. now look for tr j
+              if (counter == 0) {
+                counter = 1;
+                goto label_j;
+              }
+            }
+          }
         }
-        else {
+      }
+      else {
+        label_j:
+        for (size_t n = 1; n < tr_state.num_tr[j].routed_edges_current.size(); ++n) {
           // j is faster. move tr j
           if (network.get_predecessors(tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n]).size() > 1) {
             next_states_pos_adjusted.num_tr[j].current_edge = tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n-2];
@@ -479,6 +493,15 @@ public:
             next_states_pos_adjusted.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
             next_states_pos_adjusted.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
             return next_states_pos_adjusted;
+          }
+          else {
+            if (n == tr_state.num_tr[j].routed_edges_current.size() - 1) { //letzte
+              // for tr j: there was no prev_edge with 2+ branches. now look for tr i
+              if (counter == 0) {
+                counter = 1;
+                goto label_i;
+              }
+            }
           }
         }
       }
@@ -587,7 +610,6 @@ public:
                   }
                 }
               }
-
             }
           }
         }
