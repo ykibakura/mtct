@@ -424,10 +424,23 @@ public:
         }
       }
     }
+    if (next_states.size() != 0) {
+      for (size_t n=0; n < next_states.size(); ++n) {
+        // debug Zweck
+        for (size_t i=0; i<next_states[n].num_tr.size(); ++i) {
+          if (next_states[n].num_tr[i].routed_edges_current.size() != 0) {
+            if (next_states[n].num_tr[i].current_edge != next_states[n].num_tr[i].routed_edges_current[next_states[n].num_tr[i].routed_edges_current.size()-1]) {
+              next_states[n].num_tr[i].current_edge = next_states[n].num_tr[i].routed_edges_current[next_states[n].num_tr[i].routed_edges_current.size()-1];
+            }
+          }
+        }
+      }
+    }
     return next_states;
   }
 
   TrainState rollback_tr_pos_opposite(TrainState& tr_state, size_t i, size_t j) {
+    // if tr position fixed: updated state will be returned. If not: original tr_state will be returned
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
     TrainState next_states_pos_adjusted = tr_state;
@@ -549,26 +562,22 @@ public:
                 // TODO: memo. theyre going same direction!
                 if (k == 0 && l == 0) {
                   //  both edges started from this edge
-                  if (tr_state.num_tr[i].current_pos > tr_state.num_tr[j].current_pos) { // tr i vorne, j hinten
-                    if (tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1 > 0 && tr_state.num_tr[j].current_pos < tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1) {
-                      state_zwischenlager.num_tr[j].current_pos = tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1;
-                      state_zwischenlager.num_tr[i].routed_edges_current.resize(1);
-                      state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
+                  if (tr_state.num_tr[i].prev_pos > tr_state.num_tr[j].prev_pos) { // tr i vorne, j hinten, move tr j
+                    if (tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 1 > 0 && tr_state.num_tr[j].prev_pos < tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 1) {
+                      state_zwischenlager.num_tr[j].current_pos = tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 1;
                       state_zwischenlager.num_tr[j].routed_edges_current.resize(1);
-                      state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                      state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - (state_zwischenlager.num_tr[j].routed_edges_current.size() - 1));
                       next_states_pos_adjusted.push_back(state_zwischenlager);
                       goto label;
                     }
                     else {
                     }
                   }
-                  if (tr_state.num_tr[i].current_pos < tr_state.num_tr[j].current_pos) { // tr i vorne, j hinten
-                    if (tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1 > 0 && tr_state.num_tr[i].current_pos < tr_state.num_tr[j].current_pos - tr_list.get_train(i).length - 1) {
-                      state_zwischenlager.num_tr[i].current_pos = tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1;
+                  if (tr_state.num_tr[i].prev_pos < tr_state.num_tr[j].prev_pos) { // tr j vorne, i hinten
+                    if (tr_state.num_tr[j].prev_pos - tr_list.get_train(j).length - 1 > 0 && tr_state.num_tr[i].prev_pos < tr_state.num_tr[j].prev_pos - tr_list.get_train(i).length - 1) {
+                      state_zwischenlager.num_tr[i].current_pos = tr_state.num_tr[j].prev_pos - tr_list.get_train(j).length - 1;
                       state_zwischenlager.num_tr[i].routed_edges_current.resize(1);
-                      state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
-                      state_zwischenlager.num_tr[j].routed_edges_current.resize(1);
-                      state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                      state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - (state_zwischenlager.num_tr[i].routed_edges_current.size() - 1));
                       next_states_pos_adjusted.push_back(state_zwischenlager);
                       goto label;
                     }
@@ -578,17 +587,17 @@ public:
                 }
                 else if (k == 0) {
                   // k->i started this edge, front. adjust l->j position
-                  state_zwischenlager.num_tr[j].current_pos = tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1;
+                  state_zwischenlager.num_tr[j].current_pos = tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 1;
                   state_zwischenlager.num_tr[j].routed_edges_current.resize(l+1);
-                  state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                  state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - (tr_state.num_tr[j].routed_edges_current.size() - state_zwischenlager.num_tr[i].routed_edges_current.size()));
                   next_states_pos_adjusted.push_back(state_zwischenlager);
                   goto label;
                 }
                 else if (l == 0) {
                   // l->j started this edge, front. adjust k->i position
-                  state_zwischenlager.num_tr[i].current_pos = tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1;
+                  state_zwischenlager.num_tr[i].current_pos = tr_state.num_tr[j].prev_pos - tr_list.get_train(j).length - 1;
                   state_zwischenlager.num_tr[i].routed_edges_current.resize(k+1);
-                  state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
+                  state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - (tr_state.num_tr[i].routed_edges_current.size() - state_zwischenlager.num_tr[i].routed_edges_current.size()));
                   next_states_pos_adjusted.push_back(state_zwischenlager);
                   goto label;
                 }
@@ -614,7 +623,7 @@ public:
           }
         }
         label:
-        state_zwischenlager = tr_state;
+        tr_state = next_states_pos_adjusted[next_states_pos_adjusted.size()-1];
       }
     }
     return next_states_pos_adjusted;
