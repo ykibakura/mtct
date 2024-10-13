@@ -77,10 +77,6 @@ public:
       auto [time, index] = state_index;
       pq.pop();
 
-      int uier=0;
-      if (instance.const_n().is_on_same_unbreakable_section(5,5)){
-        uier=1;
-      }
       TrainState current_state = prev_states[time / initial_state.delta_t][index]; // the state which its successor will be examined
       if (current_state.t == 0) { // check if init_state = current_state
         if (goal_state(current_state)) {
@@ -173,6 +169,7 @@ public:
 
     std::vector<TrainState> next_states = successors(tr_state); // set of next states
     std::vector<TrainState> next_states_valid; // list of valid next states
+    std::vector<TrainState> next_states_pos_adjusted;
 
     tr_state.counter++; // for each state, counter will be added. start=0->1->2->3->...
     tr_state.t += tr_state.delta_t;
@@ -185,11 +182,14 @@ public:
         next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
       if (!pos_collision_check(next_states[i])) { // collision
-        adjust_tr_pos(next_states[i]);
-        next_states[i].cost = cost(next_states[i]);
-        if (pos_collision_check(next_states[i])) { // no collision
-          next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
+        next_states_pos_adjusted = adjust_tr_pos(next_states[i]);
+        for (size_t j = 0; j < next_states_pos_adjusted.size(); ++j) {
+          next_states_pos_adjusted[j].cost = cost(next_states_pos_adjusted[j]);
+          if (pos_collision_check(next_states_pos_adjusted[j])) { // no collision
+            next_states_valid.push_back(next_states_pos_adjusted[j]); // Add the valid state to the list of next_states_valid
+          }
         }
+
         // next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
     }
@@ -296,7 +296,8 @@ public:
                          instance.get_schedule(i).get_t_0()) +
                     tr_state.num_tr[i].current_pos,
                 tr_state.num_tr[i].exit_vertex);
-          } else {
+          }
+          else {
             paths = network.all_paths_of_length_starting_in_edge(
                 tr_state.num_tr[i].current_edge,
                 tr_list.get_train(i).max_speed * tr_state.delta_t +
@@ -330,14 +331,14 @@ public:
                   paths[j][k]; // store the edge travelling current to succ_state
 
               if (tr_list.get_train(i).max_speed <=
-                  network.get_edge(k).max_speed) {
+                  network.get_edge(paths[j][k]).max_speed) {
                 // if max_speed.train is slower equal to max_speed.edge: train run by its max speed
                 remain_time -= (network.get_edge(paths[j][k]).length -
                                 succ_state.num_tr[i].current_pos) /
                                tr_list.get_train(i).max_speed;
                 succ_state.num_tr[i].current_pos =
                     0; // update current_pos as the train ran the edge completely
-                if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
+                if (remain_time <= 0) { // if remain time is negative: has exceeded the time till next state
                   succ_state.num_tr[i].current_edge =
                       paths[j][k]; // train is at this edge[k]
                   succ_state.num_tr[i].current_pos =
@@ -362,7 +363,7 @@ public:
                                 succ_state.num_tr[i].current_pos) /
                                network.get_edge(paths[j][k]).max_speed;
                 succ_state.num_tr[i].current_pos = 0;
-                if (remain_time < 0) { // if remain time is negative: has exceeded the time till next state
+                if (remain_time <= 0) { // if remain time is negative: has exceeded the time till next state
                   succ_state.num_tr[i].current_edge =
                       paths[j][k]; // train is at this edge[k]
                   succ_state.num_tr[i].current_pos =
@@ -426,19 +427,21 @@ public:
     return next_states;
   }
 
-  bool rollback_tr_pos_opposite(TrainState& tr_state, size_t i, size_t j) {
+  TrainState rollback_tr_pos_opposite(TrainState& tr_state, size_t i, size_t j) {
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
+    TrainState next_states_pos_adjusted = tr_state;
+
     if (tr_state.num_tr[i].routed_edges_current.size() == 1) {
       // the tr i position can/would not be moved.
       for (size_t n = 0; n < tr_state.num_tr[j].routed_edges_current.size(); ++n) {
         if (network.get_predecessors(tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n]).size() > 1) {
           // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
-          tr_state.num_tr[j].current_edge = tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n-2];
-          tr_state.num_tr[j].current_pos = network.get_edge(tr_state.num_tr[j].current_edge).length - 0.001;
-          tr_state.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
-          tr_state.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
-          return true;
+          next_states_pos_adjusted.num_tr[j].current_edge = tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n-2];
+          next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(tr_state.num_tr[j].current_edge).length - 0.001;
+          next_states_pos_adjusted.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
+          next_states_pos_adjusted.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
+          return next_states_pos_adjusted;
         }
       }
     }
@@ -447,41 +450,40 @@ public:
       for (size_t n = 0; n < tr_state.num_tr[i].routed_edges_current.size(); ++n) {
         if (network.get_predecessors(tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n]).size() > 1) {
           // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
-          tr_state.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-2];
-          tr_state.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length - 0.001;
-          tr_state.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-2);
-          tr_state.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-2);
-          return true;
+          next_states_pos_adjusted.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-2];
+          next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length - 0.001;
+          next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-2);
+          next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-2);
+          return next_states_pos_adjusted;
         }
       }
     }
     else { // both train comes from other edge
-      if(tr_list.get_train(i).max_speed > tr_list.get_train(j).max_speed) {
-        for (size_t n = 0; n < tr_state.num_tr[i].routed_edges_current.size(); ++n) {
+      for (size_t n = 0; n < tr_state.num_tr[i].routed_edges_current.size(); ++n) {
+        if (tr_list.get_train(i).max_speed >= tr_list.get_train(j).max_speed) {
+          // i is faster. move tr i
           if (network.get_predecessors(tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n]).size() > 1) {
             // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
-            tr_state.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-2];
-            tr_state.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length - 0.001;
-            tr_state.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-2);
-            tr_state.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-2);
-            return true;
+            next_states_pos_adjusted.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-2];
+            next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length - 0.001;
+            next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-2);
+            next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-2);
+            return next_states_pos_adjusted;
           }
         }
-      }
-      else {
-        for (size_t n = 0; n < tr_state.num_tr[j].routed_edges_current.size(); ++n) {
+        else {
+          // j is faster. move tr j
           if (network.get_predecessors(tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n]).size() > 1) {
-            // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
-            tr_state.num_tr[j].current_edge = tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n-2];
-            tr_state.num_tr[j].current_pos = network.get_edge(tr_state.num_tr[j].current_edge).length - 0.001;
-            tr_state.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
-            tr_state.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
-            return true;
+            next_states_pos_adjusted.num_tr[j].current_edge = tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n-2];
+            next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(tr_state.num_tr[j].current_edge).length - 0.001;
+            next_states_pos_adjusted.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
+            next_states_pos_adjusted.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
+            return next_states_pos_adjusted;
           }
         }
       }
     }
-    return false;
+    return next_states_pos_adjusted;
   }
 
   /*bool rollback_tr_pos_same(TrainState& tr_state, size_t i, size_t j, size_t edge_idx) {
@@ -491,10 +493,13 @@ public:
     // TODO: welcher Zug ist hinter?
   }*/
 
-  bool adjust_tr_pos(TrainState& tr_state) {
+  std::vector<TrainState> adjust_tr_pos(TrainState& tr_state) {
     // TODO
     const Network& network = instance.const_n();
     const TrainList& tr_list = instance.get_train_list();
+    std::vector<TrainState> next_states_pos_adjusted = std::vector<TrainState>(1);
+    next_states_pos_adjusted[0] = tr_state;
+    TrainState state_zwischenlager = tr_state;
 
     for (size_t i = 0; i < tr_state.num_tr.size(); ++i) { // if for any two trains, position further search if edge is the same
       // ->first, edge check then position.
@@ -505,10 +510,12 @@ public:
           // return false; // two trains cannot be in unbreakable section. not valid successor. (break)
           // TODO: same edge is not considered as same unbreakable section!
           if (!ignore_collision(tr_state, i, j)) {
-            rollback_tr_pos_opposite(tr_state, i, j);
+            state_zwischenlager = rollback_tr_pos_opposite(tr_state, i, j);
+            next_states_pos_adjusted.push_back(state_zwischenlager);
+            goto label;
           }
           else {
-            return false;
+            // collision can be ignored. if no other pos_adjusted are added:return tr_state
           }
         }
         else { // theyre not in unbreakable edge
@@ -516,57 +523,79 @@ public:
             for (size_t l = 0; l < tr_state.num_tr[j].routed_edges_current.size(); ++l) {
               if (tr_state.num_tr[i].routed_edges_current[k] == tr_state.num_tr[j].routed_edges_current[l]) {
                 // if same edge index found; d.h. if they go through the same edge
+                // TODO: memo. theyre going same direction!
                 if (k == 0 && l == 0) {
                   //  both edges started from this edge
                   if (tr_state.num_tr[i].current_pos > tr_state.num_tr[j].current_pos) { // tr i vorne, j hinten
                     if (tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1 > 0 && tr_state.num_tr[j].current_pos < tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1) {
-                      tr_state.num_tr[j].current_pos = tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1;
-                      tr_state.num_tr[i].routed_edges_current.resize(1);
-                      tr_state.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
-                      tr_state.num_tr[j].routed_edges_current.resize(1);
-                      tr_state.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                      state_zwischenlager.num_tr[j].current_pos = tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1;
+                      state_zwischenlager.num_tr[i].routed_edges_current.resize(1);
+                      state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
+                      state_zwischenlager.num_tr[j].routed_edges_current.resize(1);
+                      state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                      next_states_pos_adjusted.push_back(state_zwischenlager);
+                      goto label;
                     }
                     else {
-                      return false;
                     }
                   }
                   if (tr_state.num_tr[i].current_pos < tr_state.num_tr[j].current_pos) { // tr i vorne, j hinten
                     if (tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1 > 0 && tr_state.num_tr[i].current_pos < tr_state.num_tr[j].current_pos - tr_list.get_train(i).length - 1) {
-                      tr_state.num_tr[i].current_pos = tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1;
-                      tr_state.num_tr[i].routed_edges_current.resize(1);
-                      tr_state.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
-                      tr_state.num_tr[j].routed_edges_current.resize(1);
-                      tr_state.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                      state_zwischenlager.num_tr[i].current_pos = tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1;
+                      state_zwischenlager.num_tr[i].routed_edges_current.resize(1);
+                      state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
+                      state_zwischenlager.num_tr[j].routed_edges_current.resize(1);
+                      state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                      next_states_pos_adjusted.push_back(state_zwischenlager);
+                      goto label;
                     }
                     else {
-                      return false;
                     }
                   }
                 }
                 else if (k == 0) {
                   // k->i started this edge, front. adjust l->j position
-                  tr_state.num_tr[j].current_pos = tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1;
-                  tr_state.num_tr[j].routed_edges_current.resize(l+1);
-                  tr_state.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
-
+                  state_zwischenlager.num_tr[j].current_pos = tr_state.num_tr[i].current_pos - tr_list.get_train(i).length - 1;
+                  state_zwischenlager.num_tr[j].routed_edges_current.resize(l+1);
+                  state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - tr_state.num_tr[j].routed_edges_current.size() + 1);
+                  next_states_pos_adjusted.push_back(state_zwischenlager);
+                  goto label;
                 }
                 else if (l == 0) {
                   // l->j started this edge, front. adjust k->i position
-                  tr_state.num_tr[i].current_pos = tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1;
-                  tr_state.num_tr[i].routed_edges_current.resize(k+1);
-                  tr_state.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
+                  state_zwischenlager.num_tr[i].current_pos = tr_state.num_tr[j].current_pos - tr_list.get_train(j).length - 1;
+                  state_zwischenlager.num_tr[i].routed_edges_current.resize(k+1);
+                  state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - tr_state.num_tr[i].routed_edges_current.size() + 1);
+                  next_states_pos_adjusted.push_back(state_zwischenlager);
+                  goto label;
                 }
                 else {
                   // both did not start from this edge. Should not exist!
-                  return false;
                 }
               }
+              else {
+                // TODO: memo. other direction: unbreakable/get_reverse
+                if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].routed_edges_current[k], tr_state.num_tr[j].routed_edges_current[l]) == 1 || tr_state.num_tr[i].routed_edges_current[k] == network.get_reverse_edge_index(tr_state.num_tr[j].routed_edges_current[l])) {
+                  // collision.
+                  if (!ignore_collision(tr_state, i, j)) {
+                    state_zwischenlager = rollback_tr_pos_opposite(tr_state, i, j);
+                    next_states_pos_adjusted.push_back(state_zwischenlager);
+                    goto label;
+                  }
+                  else {
+                    // collision can be ignored. if no other pos_adjusted are added:return tr_state
+                  }
+                }
+              }
+
             }
           }
         }
+        label:
+        state_zwischenlager = tr_state;
       }
     }
-    return true;
+    return next_states_pos_adjusted;
   }
 
   int collision_vss_check(TrainState& tr_state, int tr1, int tr2, size_t edge_idx) {
@@ -699,6 +728,13 @@ public:
                   if (collision_vss_check(tr_state, i, j, common_edge) == 1) {
                     insert_new_vss(tr_state, i, j, common_edge); // TDD section
                   }
+                }
+              }
+              else {
+                // TODO: reverse or unbreakable
+                if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].routed_edges_current[k], tr_state.num_tr[j].routed_edges_current[l]) == 1 || tr_state.num_tr[i].routed_edges_current[k] == network.get_reverse_edge_index(tr_state.num_tr[j].routed_edges_current[l])) {
+                  // collision.
+                  return ignore_collision(tr_state, i, j);
                 }
               }
             }
