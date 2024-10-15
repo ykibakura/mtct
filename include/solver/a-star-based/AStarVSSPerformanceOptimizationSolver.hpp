@@ -132,7 +132,7 @@ public:
       tr_state.num_tr[i].exit_edge = network.in_edges(tr_state.num_tr[i].exit_vertex)[0];  // Exit edge
 
       tr_state.num_tr[i].goal_reached = 0;
-      tr_state.num_tr[i].goal_reached_t = 9999999; // TODO: change to 0?
+      tr_state.num_tr[i].goal_reached_t = 9999999;
     }
 
     tr_state.cost = heuristic(tr_state);  // Calculate the heuristic cost
@@ -452,7 +452,7 @@ public:
         if (network.get_predecessors(tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n]).size() > 1) {
           // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
           next_states_pos_adjusted.num_tr[j].current_edge = tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n-2];
-          next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(tr_state.num_tr[j].current_edge).length - 0.001;
+          next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[j].current_edge).length - 0.001;
           next_states_pos_adjusted.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
           next_states_pos_adjusted.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
           return next_states_pos_adjusted;
@@ -465,7 +465,7 @@ public:
         if (network.get_predecessors(tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n]).size() > 1) {
           // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
           next_states_pos_adjusted.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-2];
-          next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length - 0.001;
+          next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[i].current_edge).length - 0.001;
           next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-2);
           next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-2);
           return next_states_pos_adjusted;
@@ -480,7 +480,7 @@ public:
           if (network.get_predecessors(tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-n]).size() > 1) {
             // if the previous edge has 2+ branches-> go back there (assumed there is a 5m unbreakable edge too!)
             next_states_pos_adjusted.num_tr[i].current_edge = tr_state.num_tr[i].routed_edges_current[tr_state.num_tr[i].routed_edges_current.size()-1-n-1];
-            next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(tr_state.num_tr[i].current_edge).length - 0.001;
+            next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[i].current_edge).length - 0.001;
             next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-1);
             next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-1);
             return next_states_pos_adjusted;
@@ -502,7 +502,7 @@ public:
           // j is faster. move tr j
           if (network.get_predecessors(tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n]).size() > 1) {
             next_states_pos_adjusted.num_tr[j].current_edge = tr_state.num_tr[j].routed_edges_current[tr_state.num_tr[j].routed_edges_current.size()-1-n-2];
-            next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(tr_state.num_tr[j].current_edge).length - 0.001;
+            next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[j].current_edge).length - 0.001;
             next_states_pos_adjusted.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
             next_states_pos_adjusted.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
             return next_states_pos_adjusted;
