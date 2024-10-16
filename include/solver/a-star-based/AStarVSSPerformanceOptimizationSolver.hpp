@@ -52,22 +52,23 @@ public:
     double                  delta_t; // delta t
     size_t    counter; // counter: how many times the state is updated
     double cost;
+    size_t pq_added;
     std::vector<std::vector<double>> edge_vss;
 
     // Constructor
     TrainState()
-        : t(0.0), delta_t(0.0), counter(0), cost(0.0) {}
+        : t(0.0), delta_t(0.0), counter(0), cost(0.0), pq_added(0) {}
     // default const
 
-    TrainState(size_t num_tr_input, double t_input, double dt_input, size_t counter_input, double cost_input, size_t num_edges_input)
+    TrainState(size_t num_tr_input, double t_input, double dt_input, size_t counter_input, double cost_input, size_t pq_added_input, size_t num_edges_input)
         : num_tr(num_tr_input), t(t_input), delta_t(dt_input), counter(counter_input), cost(cost_input),
-          edge_vss(num_edges_input) {}
+          pq_added(pq_added_input), edge_vss(num_edges_input) {}
     // constructor
     // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
 
 
     bool operator==(const TrainState& other) const {
-      return (t == other.t && cost == other.cost && num_tr.size() == other.num_tr.size() && num_tr == other.num_tr && edge_vss == other.edge_vss);
+      return (t == other.t && cost == other.cost && pq_added == other.pq_added && num_tr.size() == other.num_tr.size() && num_tr == other.num_tr && edge_vss == other.edge_vss);
     }
     // == operator
     // https://stackoverflow.com/questions/5740310/no-operator-found-while-comparing-structs-in-c
@@ -79,6 +80,7 @@ public:
   bool solve(TrainState& initial_state) {
     // priority queue. "double" for "double cost"
     std::priority_queue<std::pair<double, std::pair<double, size_t>>, std::vector<std::pair<double, std::pair<double, size_t>>>, std::greater<std::pair<double, std::pair<double, size_t>>>> pq;
+    TrainState current_state;
 
     // double initial_cost = initial_state.cost; // prev_states[0][0].cost;
     pq.emplace(std::make_pair(initial_state.cost, std::make_pair(0.0, 0)));  // (cost,(t,idx))
@@ -89,18 +91,30 @@ public:
       auto [time, index] = state_index;
       pq.pop();
 
-      TrainState current_state = prev_states[time / initial_state.delta_t][index]; // the state which its successor will be examined
+      if (time != 0) {
+        if (current_state == prev_states[time / initial_state.delta_t][index]) {
+          // TODO: skip
+          goto label;
+        }
+      }
+
+      current_state = prev_states[time / initial_state.delta_t][index]; // the state which its successor will be examined
+      current_state.pq_added = 0;
       if (current_state.t == 0) { // check if init_state = current_state
         if (goal_state(current_state)) {
           return true; // goal reached. TODO: evtl return the trainstate itself?
         }
       }
+
       if (update_state(current_state)) {
         // theres 1+ successor.
         for (size_t i = 0; i < prev_states[current_state.t / current_state.delta_t].size(); ++i) {
-          if (prev_states[current_state.t / current_state.delta_t][i].num_tr.size() == initial_state.num_tr.size()) {
-            pq.emplace(std::make_pair(prev_states[current_state.t / current_state.delta_t][i].cost, std::make_pair(current_state.t, i)));
-            // push the new prev_states to pq
+          if (prev_states[current_state.t / current_state.delta_t][i].pq_added == 0) {
+            if (prev_states[current_state.t / current_state.delta_t][i].num_tr.size() == initial_state.num_tr.size()) {
+              pq.emplace(std::make_pair(prev_states[current_state.t / current_state.delta_t][i].cost, std::make_pair(current_state.t, i)));
+              prev_states[current_state.t / current_state.delta_t][i].pq_added = 1;
+              // push the new prev_states to pq
+            }
           }
         }
         /*if (goal_state(current_state)) {
@@ -122,7 +136,6 @@ public:
                             std::vector<std::pair<double, std::pair<double, size_t>>>,
                             std::greater<std::pair<double, std::pair<double, size_t>>>> new_pq;
         // Zwischenlager
-        // Step 3: Iterate over the existing priority queue and update indices
         while (!pq.empty()) {
           auto [current_cost, state_index] = pq.top();
           auto [pq_time, pq_index] = state_index;
@@ -138,10 +151,10 @@ public:
           }
           new_pq.emplace(std::make_pair(current_cost, std::make_pair(pq_time, pq_index)));
         }
-
-        // Step 4: Replace the old priority queue with the new one
         pq = std::move(new_pq);
       }
+      label:
+      size_t bugcheck = 1;
     }
     return false; // return false when no pq and it does not reach goal
   }
@@ -244,6 +257,7 @@ public:
           if (next_states_valid[k].num_tr.size() == tr_state.num_tr.size()) {
             for (size_t l = 0; l < prev_states[tr_state.t / tr_state.delta_t].size(); ++l) {
               if (prev_states[tr_state.t / tr_state.delta_t][l] == next_states_valid[k]) {
+                break;
               }
               else if (l == prev_states[tr_state.t / tr_state.delta_t].size() - 1){
                 prev_states[tr_state.t / tr_state.delta_t].push_back(next_states_valid[k]); // copy the valid states to prev_states[t]
@@ -622,7 +636,7 @@ public:
                 if (k == 0 && l == 0) {
                   //  both edges started from this edge
                   if (tr_state.num_tr[i].prev_pos > tr_state.num_tr[j].prev_pos) { // tr i vorne, j hinten, move tr j
-                    if (tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 1 > 0 && tr_state.num_tr[j].prev_pos < tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 1) {
+                    if (tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 0.5 > 0 && tr_state.num_tr[j].prev_pos < tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 0.5) {
                       state_zwischenlager.num_tr[j].current_pos = tr_state.num_tr[i].prev_pos - tr_list.get_train(i).length - 1;
                       state_zwischenlager.num_tr[j].routed_edges_current.resize(1);
                       state_zwischenlager.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size() - (state_zwischenlager.num_tr[j].routed_edges_current.size() - 1));
@@ -633,7 +647,7 @@ public:
                     }
                   }
                   if (tr_state.num_tr[i].prev_pos < tr_state.num_tr[j].prev_pos) { // tr j vorne, i hinten
-                    if (tr_state.num_tr[j].prev_pos - tr_list.get_train(j).length - 1 > 0 && tr_state.num_tr[i].prev_pos < tr_state.num_tr[j].prev_pos - tr_list.get_train(i).length - 1) {
+                    if (tr_state.num_tr[j].prev_pos - tr_list.get_train(j).length - 0.5 > 0 && tr_state.num_tr[i].prev_pos < tr_state.num_tr[j].prev_pos - tr_list.get_train(i).length - 0.5) {
                       state_zwischenlager.num_tr[i].current_pos = tr_state.num_tr[j].prev_pos - tr_list.get_train(j).length - 1;
                       state_zwischenlager.num_tr[i].routed_edges_current.resize(1);
                       state_zwischenlager.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size() - (state_zwischenlager.num_tr[i].routed_edges_current.size() - 1));
