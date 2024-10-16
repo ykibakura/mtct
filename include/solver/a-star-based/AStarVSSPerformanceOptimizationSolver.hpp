@@ -110,6 +110,7 @@ public:
         // theres 1+ successor.
         for (size_t i = 0; i < prev_states[current_state.t / current_state.delta_t].size(); ++i) {
           if (prev_states[current_state.t / current_state.delta_t][i].pq_added == 0) {
+            // to make sure the state was not added yet to the priority queue
             if (prev_states[current_state.t / current_state.delta_t][i].num_tr.size() == initial_state.num_tr.size()) {
               pq.emplace(std::make_pair(prev_states[current_state.t / current_state.delta_t][i].cost, std::make_pair(current_state.t, i)));
               prev_states[current_state.t / current_state.delta_t][i].pq_added = 1;
@@ -241,7 +242,6 @@ public:
             next_states_valid.push_back(next_states_pos_adjusted[j]); // Add the valid state to the list of next_states_valid
           }
         }
-        // next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
     }
 
@@ -265,7 +265,6 @@ public:
               }
             }
           }
-
         }
       }
       if (prev_states[tr_state.t / tr_state.delta_t].size() == 0) {
@@ -275,7 +274,6 @@ public:
           }
         }
       }
-
       return true;
     }
     return false;
@@ -330,7 +328,6 @@ public:
         }
       }
       if (tr_state.num_tr[i].goal_reached == 1) {
-        // TODO: what time did the train arrive?
         g += (tr_state.num_tr[i].goal_reached_t - instance.get_schedule(i).get_t_0()); // Cost till here=no.trains*time
       }
     }
@@ -615,12 +612,6 @@ public:
     return next_states_pos_adjusted;
   }
 
-  /*bool rollback_tr_pos_same(TrainState& tr_state, size_t i, size_t j, size_t edge_idx) {
-    int tr1_nth_path = std::distance(tr_state.num_tr[i].routed_edges_current.begin(), std::find(tr_state.num_tr[i].routed_edges_current.begin(), tr_state.num_tr[i].routed_edges_current.end(), edge_idx));
-    int tr2_nth_path = std::distance(tr_state.num_tr[j].routed_edges_current.begin(), std::find(tr_state.num_tr[j].routed_edges_current.begin(), tr_state.num_tr[j].routed_edges_current.end(), edge_idx));
-    // meaning tr_state.num_tr[i].routed_edges_current[tr1_nth_path]=tr_state.num_tr[j].routed_edges_current[tr2_nth_path]
-    // TODO: welcher Zug ist hinter?
-  }*/
 
   std::vector<TrainState> adjust_tr_pos(TrainState& tr_state) {
     // TODO
@@ -783,7 +774,6 @@ public:
     const TrainList& tr_list = instance.get_train_list();
 
     double front_end = tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length;
-    // TODO: if prev_pos = 0? then
     double back_start = tr_state.num_tr[tr2].current_pos;
 
     if (tr_state.edge_vss[edge_idx].size() == 0) { // no vss implemented on edge_idx. Bedingung 1.
@@ -858,7 +848,7 @@ public:
                 }
               }
               else {
-                // TODO: reverse or unbreakable
+                // TODO memo: reverse or unbreakable
                 if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].routed_edges_current[k], tr_state.num_tr[j].routed_edges_current[l]) == 1 || tr_state.num_tr[i].routed_edges_current[k] == network.get_reverse_edge_index(tr_state.num_tr[j].routed_edges_current[l])) {
                   // collision.
                   return ignore_collision(tr_state, i, j);
@@ -874,7 +864,7 @@ public:
 
 
   bool insert_new_vss(TrainState& tr_state, int i, int j, size_t edge_idx) {
-    // TODO: middle of trains OR middle of strecke? - do with middle of strecke.
+    // TODO memo: middle of trains OR middle of strecke? - do with middle of strecke.
     // by stst: current_edge!=edge_idx. Then use prev_pos
     if (edge_idx != tr_state.num_tr[i].current_edge) {
       new_vss_middle_of_edge(tr_state, i, tr_state.num_tr[i].prev_pos, j, tr_state.num_tr[j].current_pos, edge_idx);
