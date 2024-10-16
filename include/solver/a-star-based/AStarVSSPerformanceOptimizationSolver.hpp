@@ -528,7 +528,12 @@ public:
           next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[j].current_edge).length - 0.001;
           next_states_pos_adjusted.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
           next_states_pos_adjusted.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
-          return next_states_pos_adjusted;
+          if (!pos_collision_check(tr_state)) {
+            // continue
+          }
+          else {
+            return next_states_pos_adjusted;
+          }
         }
       }
     }
@@ -541,7 +546,12 @@ public:
           next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[i].current_edge).length - 0.001;
           next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-2);
           next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-2);
-          return next_states_pos_adjusted;
+          if (!pos_collision_check(tr_state)) {
+            // continue
+          }
+          else {
+            return next_states_pos_adjusted;
+          }
         }
       }
     }
@@ -556,7 +566,12 @@ public:
             next_states_pos_adjusted.num_tr[i].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[i].current_edge).length - 0.001;
             next_states_pos_adjusted.num_tr[i].routed_edges_current.resize(tr_state.num_tr[i].routed_edges_current.size()-n-1);
             next_states_pos_adjusted.num_tr[i].routed_edges.resize(tr_state.num_tr[i].routed_edges.size()-n-1);
-            return next_states_pos_adjusted;
+            if (!pos_collision_check(tr_state)) {
+              // continue
+            }
+            else {
+              return next_states_pos_adjusted;
+            }
           }
           else {
             if (n == tr_state.num_tr[i].routed_edges_current.size() - 1) { //letzte
@@ -578,7 +593,12 @@ public:
             next_states_pos_adjusted.num_tr[j].current_pos = network.get_edge(next_states_pos_adjusted.num_tr[j].current_edge).length - 0.001;
             next_states_pos_adjusted.num_tr[j].routed_edges_current.resize(tr_state.num_tr[j].routed_edges_current.size()-n-2);
             next_states_pos_adjusted.num_tr[j].routed_edges.resize(tr_state.num_tr[j].routed_edges.size()-n-2);
-            return next_states_pos_adjusted;
+            if (!pos_collision_check(tr_state)) {
+              // continue
+            }
+            else {
+              return next_states_pos_adjusted;
+            }
           }
           else {
             if (n == tr_state.num_tr[j].routed_edges_current.size() - 1) { //letzte
@@ -680,6 +700,7 @@ public:
               }
               else {
                 // TODO: memo. other direction: unbreakable/get_reverse
+
                 if (network.is_on_same_unbreakable_section(tr_state.num_tr[i].routed_edges_current[k], tr_state.num_tr[j].routed_edges_current[l]) == 1 || tr_state.num_tr[i].routed_edges_current[k] == network.get_reverse_edge_index(tr_state.num_tr[j].routed_edges_current[l])) {
                   // collision.
                   if (!ignore_collision(tr_state, i, j)) {
