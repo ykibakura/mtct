@@ -33,6 +33,11 @@ private:
     int    exit_edge;
     int goal_reached;
     double goal_reached_t;
+    bool operator==(const Properties& other) const {
+      return (routed_edges == other.routed_edges && routed_edges_current == other.routed_edges_current && current_pos == other.current_pos && current_edge == other.current_edge);
+    }
+    // == operator
+    // https://stackoverflow.com/questions/5740310/no-operator-found-while-comparing-structs-in-c
   };
 
 public:
@@ -59,6 +64,13 @@ public:
           edge_vss(num_edges_input) {}
     // constructor
     // https://stackoverflow.com/questions/5498937/when-do-we-need-to-have-a-default-constructor
+
+
+    bool operator==(const TrainState& other) const {
+      return (t == other.t && cost == other.cost && num_tr.size() == other.num_tr.size() && num_tr == other.num_tr && edge_vss == other.edge_vss);
+    }
+    // == operator
+    // https://stackoverflow.com/questions/5740310/no-operator-found-while-comparing-structs-in-c
   };
 
   std::vector<std::vector<TrainState>> prev_states = std::vector<std::vector<TrainState>>(100); // List of previous states
@@ -86,8 +98,10 @@ public:
       if (update_state(current_state)) {
         // theres 1+ successor.
         for (size_t i = 0; i < prev_states[current_state.t / current_state.delta_t].size(); ++i) {
-          pq.emplace(std::make_pair(prev_states[current_state.t / current_state.delta_t][i].cost, std::make_pair(current_state.t, i)));
-          // push the new prev_states to pq
+          if (prev_states[current_state.t / current_state.delta_t][i].num_tr.size() == initial_state.num_tr.size()) {
+            pq.emplace(std::make_pair(prev_states[current_state.t / current_state.delta_t][i].cost, std::make_pair(current_state.t, i)));
+            // push the new prev_states to pq
+          }
         }
         /*if (goal_state(current_state)) {
           return true; // goal reached.
@@ -100,8 +114,33 @@ public:
         }
       } // do pq for next step
       else { // theres no successor from that state. Delete this state
-        prev_states[time].erase(prev_states[time].begin() + index);  // Erase the state
+        prev_states[time/initial_state.delta_t].erase(prev_states[time/initial_state.delta_t].begin() + index);  // Erase the state
         // https://stackoverflow.com/questions/42523981/erase-element-of-struct-vector
+        pq.pop();
+        // Now, pq's index will also be shifted
+        std::priority_queue<std::pair<double, std::pair<double, size_t>>,
+                            std::vector<std::pair<double, std::pair<double, size_t>>>,
+                            std::greater<std::pair<double, std::pair<double, size_t>>>> new_pq;
+        // Zwischenlager
+        // Step 3: Iterate over the existing priority queue and update indices
+        while (!pq.empty()) {
+          auto [current_cost, state_index] = pq.top();
+          auto [pq_time, pq_index] = state_index;
+          pq.pop();  // Pop the current top element
+
+          if (pq_time == time) {
+            if (pq_index > index) {
+              --pq_index; // shift the index
+            } else if (pq_index == index) {
+              // the state just deleted
+              continue;
+            }
+          }
+          new_pq.emplace(std::make_pair(current_cost, std::make_pair(pq_time, pq_index)));
+        }
+
+        // Step 4: Replace the old priority queue with the new one
+        pq = std::move(new_pq);
       }
     }
     return false; // return false when no pq and it does not reach goal
@@ -189,7 +228,6 @@ public:
             next_states_valid.push_back(next_states_pos_adjusted[j]); // Add the valid state to the list of next_states_valid
           }
         }
-
         // next_states_valid.push_back(next_states[i]); // Add the valid state to the list of next_states_valid
       }
     }
@@ -198,10 +236,31 @@ public:
       if (prev_states.size() <= tr_state.t / tr_state.delta_t) { // Bsp 15s with 0,5,10,15: size()<=3:add
         prev_states.resize(tr_state.t / tr_state.delta_t + 1); // Resize prev_states
       }
-      if (prev_states[tr_state.t / tr_state.delta_t].size() < next_states_valid.size()) { // if less size than next states valid
+      /*if (prev_states[tr_state.t / tr_state.delta_t].size() < next_states_valid.size()) { // if less size than next states valid
         prev_states[tr_state.t / tr_state.delta_t].resize(next_states_valid.size() + 1); // Resize prev_states
+      }*/
+      if (prev_states[tr_state.t / tr_state.delta_t].size() != 0) {
+        for (size_t k = 0; k < next_states_valid.size(); ++k) {
+          if (next_states_valid[k].num_tr.size() == tr_state.num_tr.size()) {
+            for (size_t l = 0; l < prev_states[tr_state.t / tr_state.delta_t].size(); ++l) {
+              if (prev_states[tr_state.t / tr_state.delta_t][l] == next_states_valid[k]) {
+              }
+              else if (l == prev_states[tr_state.t / tr_state.delta_t].size() - 1){
+                prev_states[tr_state.t / tr_state.delta_t].push_back(next_states_valid[k]); // copy the valid states to prev_states[t]
+                break;
+              }
+            }
+          }
+
+        }
       }
-      prev_states[tr_state.t / tr_state.delta_t] = next_states_valid; // copy the valid states to prev_states[t]
+      if (prev_states[tr_state.t / tr_state.delta_t].size() == 0) {
+        for (size_t k = 0; k < next_states_valid.size(); ++k) {
+          if (next_states_valid[k].num_tr.size() == tr_state.num_tr.size()) {
+            prev_states[tr_state.t / tr_state.delta_t].push_back(next_states_valid[k]); // copy the valid states to prev_states[t]
+          }
+        }
+      }
 
       return true;
     }
@@ -710,8 +769,10 @@ public:
             return 2; // already separated by vss exists. No collision, No VSS needed
           }
         }
-        else if (front_end >= tr_state.edge_vss[edge_idx][i]) {
-          return 1;
+        else if (i == tr_state.edge_vss[edge_idx].size() - 1) {
+          if (front_end >= tr_state.edge_vss[edge_idx][i]) {
+            return 1;
+          }
         }
       }
       return 0; // back_start is at the last vss section of the edge. collision
