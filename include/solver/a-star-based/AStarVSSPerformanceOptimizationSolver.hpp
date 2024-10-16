@@ -914,8 +914,6 @@ public:
         }
       }
     }
-
-
     else { // exists 1+ VSS in the edge
       for (int i = 0; i < tr_state.edge_vss[edge_idx].size() + 1; ++i) { // go through every vss on edge_idx
         double middle_point;
@@ -1001,6 +999,18 @@ public:
           }
         }
       }
+    }
+    return true;
+  }
+
+  bool new_vss_middle_of_train(TrainState& tr_state, int tr1, double tr1_pos, int tr2, double tr2_pos, size_t edge_idx) {
+    const TrainList& tr_list = instance.get_train_list();
+    if (tr1_pos + tr_list.get_train(tr1).length > tr2_pos) {
+      // if tr1 vorne, tr2 hinten
+      tr_state.edge_vss[edge_idx].push_back((tr_state.num_tr[tr1].prev_pos - tr_list.get_train(tr1).length + tr_state.num_tr[tr2].current_pos) / 2);
+    }
+    else { // tr2 vorne, tr1 hinten
+      tr_state.edge_vss[edge_idx].push_back((tr_state.num_tr[tr2].prev_pos - tr_list.get_train(tr2).length + tr_state.num_tr[tr1].current_pos) / 2);
     }
     return true;
   }
