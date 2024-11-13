@@ -1,8 +1,6 @@
 name: Gurobi Auto Updater
 
 on:
-  schedule:
-    - cron: '15 1 * * 3' # Every Wednesday at 1:15 AM UTC
   workflow_dispatch:
 
 jobs:
@@ -69,4 +67,4 @@ jobs:
           NEW_VERSION: ${{ env.NEW_VERSION }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr create --title "Update Gurobi version to $NEW_VERSION" --body "This PR updates the Gurobi version to $NEW_VERSION" --reviewer sengels-tum --base main --head update-gurobi-$NEW_VERSION
+          gh pr create --title "Update Gurobi version to $NEW_VERSION" --body "This PR updates the Gurobi version to $NEW_VERSION" --base main --head update-gurobi-$NEW_VERSION
